@@ -7,14 +7,14 @@ import { useState, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import {
   detailedWebsiteSummary,
-  braveSearch,
+  braveWebSearch,
   optimizeRawSearchQuery,
   webscrape,
   getStreamedFinalAnswer,
   generateFollowUpSearchQueries,
 } from "./api/search/services";
 import { AiResponseView } from "@/components/ui/chat/ai-response-view";
-import { BraveSearchResponse, ScrapeStatus } from "./api/search/schemas";
+import { BraveWebSearchResponse, ScrapeStatus } from "./api/search/schemas";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
@@ -79,36 +79,21 @@ export default function Home() {
         searchQueries: optimizedQueries,
       });
 
-      const allSearchResults: BraveSearchResponse = {
+      const allSearchResults: BraveWebSearchResponse = {
         web: { results: [] },
-        videos: { results: [] },
       };
 
       // Modify the search results accumulation to handle cancellation
       for (const query of optimizedQueries) {
         if (signal.aborted) throw new Error("Generation cancelled");
 
-        const singleChunkSearchResults = await braveSearch(query);
+        const singleChunkSearchResults = await braveWebSearch(query);
 
         // Add web results if URL doesn't already exist, up to 10 total
         for (const result of singleChunkSearchResults.web.results) {
           if (allSearchResults.web.results.length >= 5) break;
           if (!allSearchResults.web.results.some((r) => r.url === result.url)) {
             allSearchResults.web.results.push(result);
-          }
-        }
-
-        // Add video results if URL doesn't already exist
-        if (singleChunkSearchResults.videos) {
-          for (const result of singleChunkSearchResults.videos.results) {
-            if (allSearchResults.videos!.results.length >= 10) break;
-            if (
-              !allSearchResults.videos!.results.some(
-                (r) => r.url === result.url
-              )
-            ) {
-              allSearchResults.videos!.results.push(result);
-            }
           }
         }
 

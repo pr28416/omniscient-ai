@@ -12,7 +12,7 @@ export const ZSearchResponse = z.object({
   queries: z.array(z.string()),
 });
 
-export interface BraveSearchResponse {
+export interface BraveWebSearchResponse {
   web: {
     results: Array<{
       title: string;
@@ -24,16 +24,16 @@ export interface BraveSearchResponse {
       };
     }>;
   };
-  videos?: {
-    results: Array<{
-      title: string;
+}
+
+export interface BraveImageSearchResponse {
+  results: Array<{
+    title: string;
+    url: string;
+    properties: {
       url: string;
-      description: string;
-      meta_url: {
-        favicon: string;
-      };
-    }>;
-  };
+    };
+  }>;
 }
 
 export interface WebSource {

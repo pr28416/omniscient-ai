@@ -1,4 +1,4 @@
-import { BraveSearchResponse, ScrapeStatus } from "@/app/api/search/schemas";
+import { BraveWebSearchResponse, ScrapeStatus } from "@/app/api/search/schemas";
 
 export interface UserMessage {
   content: string;
@@ -11,7 +11,7 @@ export interface AssistantMessage {
 
   // Perform search
   isDonePerformingSearch?: boolean;
-  searchResults?: BraveSearchResponse;
+  searchResults?: BraveWebSearchResponse;
 
   // Process search results
   isDoneProcessingSearchResults?: boolean;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  braveSearch,
+  braveWebSearch,
   webscrape,
   optimizeRawSearchQuery,
   detailedWebsiteSummary,
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   }
 
   // Search
-  const braveResponse = await braveSearch(response.queries[0]);
+  const braveResponse = await braveWebSearch(response.queries[0]);
 
   // Process multiple results
   const results = await Promise.all(
