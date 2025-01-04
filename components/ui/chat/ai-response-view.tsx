@@ -205,7 +205,7 @@ export function AiResponseView({
                 ) && (
                   <div className="px-3 py-2 bg-card/50 flex flex-col gap-2">
                     <h4 className="text-sm text-muted-foreground">
-                      Finished reading
+                      Finished reading. Hover to view summary.
                     </h4>
                     <div className="flex flex-row flex-wrap gap-3">
                       {assistantMessage.processedSearchResults

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/lib/chat/chat-context";
-import { Send, X } from "lucide-react";
+import { Send, X, Pencil, Menu } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import {
@@ -14,14 +14,28 @@ import {
 } from "./api/search/services";
 import { AiResponseView } from "@/components/ui/chat/ai-response-view";
 import { BraveSearchResponse, ScrapeStatus } from "./api/search/schemas";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
-  const { messages, addUserMessage, updateLatestAssistantMessage } = useChat();
+  const {
+    messages,
+    addUserMessage,
+    updateLatestAssistantMessage,
+    setMessages,
+  } = useChat();
   const [isGenerating, setIsGenerating] = useState(false);
   const [input, setInput] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(
+    null
+  );
+  const [editingMessageContent, setEditingMessageContent] = useState("");
+  const [activeMessageIndex, setActiveMessageIndex] = useState<number>(
+    messages.length - 1
+  );
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const cancelGeneration = () => {
     if (abortControllerRef.current) {
@@ -36,7 +50,7 @@ export default function Home() {
 
     const { scrollTop, scrollHeight, clientHeight } =
       scrollContainerRef.current;
-    const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 100;
+    const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 50;
 
     if (isNearBottom !== shouldAutoScroll) {
       setShouldAutoScroll(isNearBottom);
@@ -50,7 +64,7 @@ export default function Home() {
           top: scrollContainerRef.current.scrollHeight,
           behavior: "smooth",
         });
-      }, 100);
+      }, 50);
 
       return () => clearTimeout(timeoutId);
     }
@@ -220,6 +234,32 @@ export default function Home() {
     }
   };
 
+  const handleEditMessage = (index: number, newContent: string) => {
+    cancelGeneration();
+
+    // Reset the assistant message and remove subsequent messages
+    const updatedMessages = messages.slice(0, index);
+
+    // Update chat context with truncated messages
+    setMessages(updatedMessages);
+
+    // Reset editing state
+    setEditingMessageIndex(null);
+    setEditingMessageContent("");
+
+    // Trigger new search with edited content
+    handleSubmit(newContent);
+  };
+
+  const scrollToMessage = (index: number) => {
+    const messageElements = document.querySelectorAll("[data-message-index]");
+    const targetElement = messageElements[index];
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: "smooth" });
+      setActiveMessageIndex(index);
+    }
+  };
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-col h-screen bg-background items-center justify-center p-4 text-foreground">
@@ -261,54 +301,147 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background items-center">
-      {/* Content */}
+    <div className="flex flex-row h-screen bg-background">
+      {/* Sidebar */}
       <div
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-3xl overflow-y-auto gap-16"
+        className={cn(
+          "fixed left-0 top-0 mt-16 h-full bg-background z-50 transition-transform duration-300 ease-in-out",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full",
+          "w-full max-w-md p-4 gap-2"
+        )}
       >
         {messages.map((message, idx) => (
-          <div
+          <Button
             key={idx}
-            className="flex flex-col w-full gap-8 h-auto min-h-fit"
+            variant="ghost"
+            onClick={() => {
+              scrollToMessage(idx);
+              setIsSidebarOpen(false);
+            }}
+            className={cn(
+              "w-full justify-start font-normal",
+              activeMessageIndex === idx && "bg-accent"
+            )}
           >
-            <p className="w-full font-semibold tracking-tight text-4xl">
-              {message.userMessage.content}
-            </p>
-            <AiResponseView assistantMessage={message.assistantMessage} />
-          </div>
+            {message.userMessage.content}
+          </Button>
         ))}
       </div>
 
-      {/* Search */}
-      <div className="w-full p-4 pb-8 flex flex-row items-center justify-center">
-        <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full max-w-3xl p-2">
-          <TextareaAutosize
-            className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
-            placeholder="Ask a follow-up question..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            maxRows={2}
-            minRows={1}
-          />
-          <div className="flex flex-col gap-2 justify-end">
-            <Button
-              variant={
-                isGenerating || input.length === 0 ? "secondary" : "default"
-              }
-              size="icon"
-              onClick={() => {
-                if (isGenerating) {
-                  cancelGeneration();
-                } else {
-                  setInput("");
-                  handleSubmit(input);
-                }
-              }}
+      {/* Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Toggle Button */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50"
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      >
+        <Menu />
+      </Button>
+
+      {/* Main Content */}
+      <div className="flex flex-col h-screen w-full items-center">
+        {/* Content */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-4xl overflow-y-auto gap-16"
+        >
+          <div />
+          {messages.map((message, idx) => (
+            <div
+              key={idx}
+              data-message-index={idx}
+              className="flex flex-col w-full gap-8 h-auto min-h-fit"
             >
-              {isGenerating ? "×" : <Send />}
-            </Button>
+              {editingMessageIndex === idx ? (
+                <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full p-2">
+                  <TextareaAutosize
+                    className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
+                    value={editingMessageContent}
+                    onChange={(e) => setEditingMessageContent(e.target.value)}
+                    maxRows={3}
+                    minRows={1}
+                  />
+                  <div className="flex flex-col gap-2 justify-end">
+                    <Button
+                      variant="default"
+                      size="icon"
+                      onClick={() =>
+                        handleEditMessage(idx, editingMessageContent)
+                      }
+                    >
+                      <Send />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      onClick={() => {
+                        setEditingMessageIndex(null);
+                        setEditingMessageContent("");
+                      }}
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="group relative w-full cursor-pointer"
+                  onClick={() => {
+                    setEditingMessageIndex(idx);
+                    setEditingMessageContent(message.userMessage.content);
+                  }}
+                >
+                  <p className="w-full font-semibold tracking-tight text-4xl">
+                    {message.userMessage.content}
+                  </p>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Pencil className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+              <AiResponseView assistantMessage={message.assistantMessage} />
+            </div>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="w-full p-4 pb-8 flex flex-row items-center justify-center">
+          <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full max-w-4xl p-2">
+            <TextareaAutosize
+              className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
+              placeholder="Ask a follow-up question..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              maxRows={2}
+              minRows={1}
+            />
+            <div className="flex flex-col gap-2 justify-end">
+              <Button
+                variant={
+                  isGenerating || input.length === 0 ? "secondary" : "default"
+                }
+                size="icon"
+                onClick={() => {
+                  if (isGenerating) {
+                    cancelGeneration();
+                  } else {
+                    setInput("");
+                    handleSubmit(input);
+                  }
+                }}
+              >
+                {isGenerating ? <X /> : <Send />}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
