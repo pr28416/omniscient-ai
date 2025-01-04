@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
-
+import { ChatProvider } from "@/lib/chat/chat-context";
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
@@ -19,8 +19,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${dmSans.className}  antialiased dark`}>
-        {children}
+      <body className={`${dmSans.className} dark antialiased `}>
+        <ChatProvider>{children}</ChatProvider>
       </body>
     </html>
   );

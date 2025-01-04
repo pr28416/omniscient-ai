@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import {
   braveSearch,
-  firecrawlWebScrape,
-  generateExtendedQuery,
+  webscrape,
   optimizeRawSearchQuery,
+  detailedWebsiteSummary,
+  getStreamedFinalAnswer,
 } from "./services";
-import { SearchRequest } from "./schemas";
+import { SearchRequest, WebSource } from "./schemas";
 
 export async function POST(req: Request) {
   const { query } = (await req.json()) as SearchRequest;
+
   // Optimize query first
   const response = await optimizeRawSearchQuery(query);
   if (!response) {
@@ -21,23 +23,59 @@ export async function POST(req: Request) {
   // Search
   const braveResponse = await braveSearch(response.queries[0]);
 
-  if (!braveResponse.web.results[0].url) {
-    return NextResponse.json(
-      { error: "Failed to find a URL to scrape" },
-      { status: 500 }
-    );
-  }
+  // Process multiple results
+  const results = await Promise.all(
+    braveResponse.web.results
+      .slice(0, 3)
+      .map(async (result, idx): Promise<WebSource | null> => {
+        try {
+          const scrapeResponse = await webscrape(result.url);
+          const summaryResponse = await detailedWebsiteSummary(
+            query,
+            scrapeResponse
+          );
 
-  return NextResponse.json({
-    url: braveResponse.web.results[0].url,
+          return {
+            url: result.url,
+            title: result.title,
+            favicon: result.profile.img,
+            sourceNumber: idx + 1,
+            summary: summaryResponse || "",
+          };
+        } catch (error) {
+          console.error(`Error processing ${result.url}:`, error);
+          return null;
+        }
+      })
+  );
+
+  // Filter out any failed results
+  const validResults = results.filter((result) => result !== null);
+
+  // Replace the direct return with a streaming response
+  const stream = await getStreamedFinalAnswer({
+    query,
+    sources: validResults,
   });
 
-  // // Scrape
-  // const scrapeResponse = await firecrawlWebScrape(
-  //   braveResponse.web.results[0].url
-  // );
+  // return NextResponse.json({ streamedFinalAnswer: stream });
 
-  // return NextResponse.json({
-  //   scrapeResponse,
-  // });
+  // Return a streaming response
+  return new NextResponse(
+    new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          if (chunk) controller.enqueue(new TextEncoder().encode(chunk));
+        }
+        controller.close();
+      },
+    }),
+    {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    }
+  );
 }
