@@ -9,7 +9,7 @@ import {
   SetStateAction,
 } from "react";
 import {
-  AiImageSearchResponse,
+  //   AiImageSearchResponse,
   AiWebSearchResponse,
   UserMessage,
 } from "./schemas";
@@ -24,8 +24,8 @@ import {
 import { WebScrapeStatus } from "@/app/api/search/schemas";
 import { BraveWebSearchResponse } from "@/app/api/brave/schemas";
 import { braveWebSearch } from "@/app/api/brave/actions";
-import { optimizeRawImageSearchQuery } from "@/app/api/image/actions";
-import { decision } from "@/app/api/utils/actions";
+// import { optimizeRawImageSearchQuery } from "@/app/api/image/actions";
+// import { decision } from "@/app/api/utils/actions";
 
 type Message = {
   userMessage: UserMessage;
@@ -48,96 +48,96 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([
-    {
-      userMessage: { content: "What is the best way to learn React?" },
-      assistantMessage: {
-        searchQueries: [
-          "React tutorials",
-          "React best practices",
-          "Learn React for beginners",
-        ],
-        isDoneGeneratingSearchQueries: true,
-        isDonePerformingSearch: true,
-        searchResults: {
-          web: {
-            results: [
-              {
-                url: "https://react.dev/learn",
-                title: "Quick Start – React Documentation",
-                description:
-                  "Official React documentation providing step-by-step guidance for beginners to learn React fundamentals.",
-                profile: {
-                  name: "React",
-                  img: "https://static.cdnlogo.com/logos/g/35/google-icon.svg",
-                },
-              },
-              {
-                url: "https://roadmap.sh/react",
-                title: "React Developer Roadmap",
-                description:
-                  "A comprehensive roadmap for learning React, including prerequisites and advanced concepts.",
-                profile: {
-                  name: "React",
-                  img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1024px-React-icon.svg.png",
-                },
-              },
-            ],
-          },
-        },
-        isDoneProcessingSearchResults: true,
-        processedSearchResults: [
-          {
-            scrapeStatus: "success",
-            source: {
-              url: "https://react.dev/learn",
-              title: "Quick Start - React Documentation",
-              summary:
-                "Official React documentation providing step-by-step guidance for beginners to learn React fundamentals.",
-              favicon: "https://static.cdnlogo.com/logos/g/35/google-icon.svg",
-              sourceNumber: 1,
-            },
-          },
-          {
-            scrapeStatus: "error",
-            source: {
-              url: "https://roadmap.sh/react",
-              title: "React Developer Roadmap",
-              favicon:
-                "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1024px-React-icon.svg.png",
-              sourceNumber: 2,
-            },
-            error: "Error while reading: Testing error.",
-          },
-          {
-            scrapeStatus: "in-progress",
-            source: {
-              url: "https://beta.reactjs.org/learn",
-              title: "Learn React - Beta Documentation",
-              favicon: "https://beta.reactjs.org/favicon.ico",
-              sourceNumber: 3,
-            },
-          },
-          {
-            scrapeStatus: "not-started",
-            source: {
-              url: "https://react-tutorial.app",
-              title: "Interactive React Tutorial",
-              favicon:
-                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQoRUg0l7PMuv1byhqZ90_i41rtCfjKYpjFeA&s",
-              sourceNumber: 4,
-            },
-          },
-        ],
-        isDoneGeneratingFinalAnswer: true,
-        finalAnswer:
-          "Here's an example of inline math: \\(f(x) = \\frac{1}{\\sqrt{2\\pi}} e^{-\\frac{x^2}{2}}\\). Here's an example of non-inline math: \\[\\int_{-\\infty}^{ \\infty} f(x) dx = 1\\]\n\nHere's more math: \\[\nf(x) = x^2\n\\]",
-        followUpSearchQueries: [
-          "React tutorials",
-          "React best practices",
-          "React tutorials",
-        ],
-      },
-    },
+    // {
+    //   userMessage: { content: "What is the best way to learn React?" },
+    //   assistantMessage: {
+    //     searchQueries: [
+    //       "React tutorials",
+    //       "React best practices",
+    //       "Learn React for beginners",
+    //     ],
+    //     isDoneGeneratingSearchQueries: true,
+    //     isDonePerformingSearch: true,
+    //     searchResults: {
+    //       web: {
+    //         results: [
+    //           {
+    //             url: "https://react.dev/learn",
+    //             title: "Quick Start – React Documentation",
+    //             description:
+    //               "Official React documentation providing step-by-step guidance for beginners to learn React fundamentals.",
+    //             profile: {
+    //               name: "React",
+    //               img: "https://static.cdnlogo.com/logos/g/35/google-icon.svg",
+    //             },
+    //           },
+    //           {
+    //             url: "https://roadmap.sh/react",
+    //             title: "React Developer Roadmap",
+    //             description:
+    //               "A comprehensive roadmap for learning React, including prerequisites and advanced concepts.",
+    //             profile: {
+    //               name: "React",
+    //               img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1024px-React-icon.svg.png",
+    //             },
+    //           },
+    //         ],
+    //       },
+    //     },
+    //     isDoneProcessingSearchResults: true,
+    //     processedSearchResults: [
+    //       {
+    //         scrapeStatus: "success",
+    //         source: {
+    //           url: "https://react.dev/learn",
+    //           title: "Quick Start - React Documentation",
+    //           summary:
+    //             "Official React documentation providing step-by-step guidance for beginners to learn React fundamentals.",
+    //           favicon: "https://static.cdnlogo.com/logos/g/35/google-icon.svg",
+    //           sourceNumber: 1,
+    //         },
+    //       },
+    //       {
+    //         scrapeStatus: "error",
+    //         source: {
+    //           url: "https://roadmap.sh/react",
+    //           title: "React Developer Roadmap",
+    //           favicon:
+    //             "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1024px-React-icon.svg.png",
+    //           sourceNumber: 2,
+    //         },
+    //         error: "Error while reading: Testing error.",
+    //       },
+    //       {
+    //         scrapeStatus: "in-progress",
+    //         source: {
+    //           url: "https://beta.reactjs.org/learn",
+    //           title: "Learn React - Beta Documentation",
+    //           favicon: "https://beta.reactjs.org/favicon.ico",
+    //           sourceNumber: 3,
+    //         },
+    //       },
+    //       {
+    //         scrapeStatus: "not-started",
+    //         source: {
+    //           url: "https://react-tutorial.app",
+    //           title: "Interactive React Tutorial",
+    //           favicon:
+    //             "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQoRUg0l7PMuv1byhqZ90_i41rtCfjKYpjFeA&s",
+    //           sourceNumber: 4,
+    //         },
+    //       },
+    //     ],
+    //     isDoneGeneratingFinalAnswer: true,
+    //     finalAnswer:
+    //       "Here's an example of inline math: \\(f(x) = \\frac{1}{\\sqrt{2\\pi}} e^{-\\frac{x^2}{2}}\\). Here's an example of non-inline math: \\[\\int_{-\\infty}^{ \\infty} f(x) dx = 1\\]\n\nHere's more math: \\[\nf(x) = x^2\n\\]",
+    //     followUpSearchQueries: [
+    //       "React tutorials",
+    //       "React best practices",
+    //       "React tutorials",
+    //     ],
+    //   },
+    // },
   ]);
 
   const addUserMessage = (content: string) => {
@@ -280,41 +280,41 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   };
 
-  const aiImageSearch = async (
-    query: string,
-    signal: AbortSignal
-  ): Promise<AiImageSearchResponse> => {
-    if (
-      !(await decision(
-        query,
-        "Would searching for images be helpful in response to the given query? You have to be absolutely sure that it would be helpful."
-      ))
-    ) {
-      return {
-        optimizedQueries: [],
-        imageSearchResults: [],
-      };
-    }
+  //   const aiImageSearch = async (
+  //     query: string,
+  //     signal: AbortSignal
+  //   ): Promise<AiImageSearchResponse> => {
+  //     if (
+  //       !(await decision(
+  //         query,
+  //         "Would searching for images be helpful in response to the given query? You have to be absolutely sure that it would be helpful."
+  //       ))
+  //     ) {
+  //       return {
+  //         optimizedQueries: [],
+  //         imageSearchResults: [],
+  //       };
+  //     }
 
-    const optimizedQueryResponse = await optimizeRawImageSearchQuery(query);
-    if (signal.aborted) throw new Error("Generation cancelled");
+  //     const optimizedQueryResponse = await optimizeRawImageSearchQuery(query);
+  //     if (signal.aborted) throw new Error("Generation cancelled");
 
-    if (!optimizedQueryResponse) {
-      updateLatestAssistantMessage({
-        isDoneGeneratingSearchQueries: true,
-      });
-      return {
-        optimizedQueries: [],
-        imageSearchResults: [],
-      };
-    }
+  //     if (!optimizedQueryResponse) {
+  //       updateLatestAssistantMessage({
+  //         isDoneGeneratingSearchQueries: true,
+  //       });
+  //       return {
+  //         optimizedQueries: [],
+  //         imageSearchResults: [],
+  //       };
+  //     }
 
-    const { queries: optimizedQueries } = optimizedQueryResponse;
-    return {
-      optimizedQueries,
-      imageSearchResults: [],
-    };
-  };
+  //     const { queries: optimizedQueries } = optimizedQueryResponse;
+  //     return {
+  //       optimizedQueries,
+  //       imageSearchResults: [],
+  //     };
+  //   };
 
   const generateAssistantResponse = async (
     query: string,
