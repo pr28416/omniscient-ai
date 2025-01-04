@@ -316,51 +316,11 @@ export function AiResponseView({
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
-            a: ({ href, children }) => {
-              const result = assistantMessage.processedSearchResults?.find(
-                (result) => result.source.url === href
-              );
-
-              return (
-                <span className="inline-block">
-                  <HoverCard openDelay={200}>
-                    <HoverCardTrigger asChild>
-                      <a href={href} target="_blank" rel="noopener noreferrer">
-                        <span>{children}</span>
-                      </a>
-                    </HoverCardTrigger>
-                    <HoverCardContent
-                      className="max-w-80 cursor-pointer"
-                      onClick={() =>
-                        window.open(href, "_blank", "noopener,noreferrer")
-                      }
-                    >
-                      <div className="flex flex-row items-center gap-3 h-6">
-                        <Image
-                          src={result?.source.favicon || "/favicon.ico"}
-                          alt="Site favicon"
-                          width={16}
-                          height={16}
-                          className="flex-shrink-0 rounded"
-                          unoptimized
-                          onError={(e) => {
-                            e.currentTarget.src = "/favicon.ico";
-                          }}
-                        />
-                        <span className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate">
-                            {result?.source.title || String(children)}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {href}
-                          </span>
-                        </span>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </span>
-              );
-            },
+            a: ({ href, children }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                <span>{children}</span>
+              </a>
+            ),
             p: ({ children }) => (
               <div className="my-4 leading-relaxed">{children}</div>
             ),
@@ -369,6 +329,58 @@ export function AiResponseView({
           {assistantMessage.finalAnswer || "Generating answer..."}
         </Markdown>
       </div>
+
+      {/* Citations */}
+      {assistantMessage.processedSearchResults &&
+        assistantMessage.processedSearchResults.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Sources
+            </h3>
+            <div className="flex flex-row flex-wrap gap-2">
+              {assistantMessage.processedSearchResults
+                .filter((result) => result.scrapeStatus === "success")
+                .map((result, idx) => (
+                  <HoverCard key={idx} openDelay={200}>
+                    <HoverCardTrigger asChild>
+                      <a
+                        href={result.source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-row items-center gap-3 p-2 rounded border hover:bg-accent transition-colors max-w-80 relative"
+                      >
+                        <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                          {idx + 1}
+                        </div>
+                        <Image
+                          src={result.source.favicon}
+                          alt={`${new URL(result.source.url).hostname} favicon`}
+                          width={16}
+                          height={16}
+                          className="flex-shrink-0 rounded"
+                          unoptimized
+                          onError={(e) => {
+                            e.currentTarget.src = "/favicon.ico";
+                          }}
+                        />
+                        <span className="text-sm font-medium truncate">
+                          {result.source.title}
+                        </span>
+                      </a>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-96 max-h-96 overflow-y-auto">
+                      <Markdown
+                        className="text-sm prose prose-sm dark:prose-invert"
+                        remarkPlugins={[remarkGfm]}
+                      >
+                        {result.source.summary || "No summary available"}
+                      </Markdown>
+                    </HoverCardContent>
+                  </HoverCard>
+                ))}
+            </div>
+          </div>
+        )}
 
       {/* Follow-up Questions */}
       {assistantMessage.followUpSearchQueries &&

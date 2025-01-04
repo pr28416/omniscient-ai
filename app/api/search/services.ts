@@ -279,7 +279,7 @@ export async function* getStreamedFinalAnswer(
         content: `You are a helpful assistant that provides detailed answers formatted in markdown. 
 Use numerical references throughout the response in the format [number](url), where 'number' corresponds to the source number and 'url' is the source's URL. These references should appear at the end of sentences or series of sentences that use information from a source.
 
-Structure your response with headings, subheadings, and lists when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section. 
+Structure your response with headings, subheadings, lists, and tables when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section. 
 If you do not know the answer, respond with "I don't know" and explain why you cannot provide an answer.`,
       },
       {

@@ -47,6 +47,12 @@ export default function Home() {
   const handleSubmit = async (query: string) => {
     cancelGeneration();
 
+    // Scroll to bottom immediately when submission starts
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "smooth",
+    });
+
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
@@ -400,7 +406,7 @@ export default function Home() {
                     setEditingMessageContent(message.userMessage.content);
                   }}
                 >
-                  <p className="w-full font-semibold tracking-tight text-4xl">
+                  <p className="w-full font-semibold tracking-tight text-4xl text-primary dark:text-rose-500">
                     {message.userMessage.content}
                   </p>
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
