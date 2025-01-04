@@ -1,11 +1,13 @@
 "use server";
 
-import { getCerebrasClient, getOpenAIClient } from "@/lib/ai";
+import { getCerebrasClient, getGroqClient, getOpenAIClient } from "@/lib/ai";
 import { ChatCompletion } from "openai/resources/index.mjs";
 import {
   BraveSearchResponse,
+  FollowUpSearchQueriesResponse,
   SearchResponse,
   StreamedFinalAnswerRequest,
+  ZFollowUpSearchQueriesResponse,
   ZSearchResponse,
 } from "./schemas";
 import { zodResponseFormat } from "openai/helpers/zod.mjs";
@@ -94,7 +96,7 @@ export async function braveSearch(
   return data;
 }
 
-export async function webscrape(url: string): Promise<string> {
+export async function webscrape(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, {
       headers: {
@@ -147,7 +149,7 @@ export async function webscrape(url: string): Promise<string> {
     return markdown;
   } catch (error) {
     console.error("Error fetching page:", error);
-    throw error;
+    return null;
   }
 }
 
@@ -298,4 +300,60 @@ If you do not know the answer, respond with "I don't know" and explain why you c
   }
 
   // return stream.choices[0].message.content;
+}
+
+export async function generateFollowUpSearchQueries(
+  enhancedQueries: string[],
+  previousModelResponse: string,
+  numQueries: number = 5
+): Promise<FollowUpSearchQueriesResponse | null> {
+  try {
+    const groqClient = getGroqClient();
+    const response = await groqClient.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful assistant that generates follow-up search queries based on a list of enhanced queries and a previous model response. Your response should be a JSON object with the following schema: {queries: string[]}. You should return ${numQueries} queries.`,
+        },
+        {
+          role: "user",
+          content: `Enhanced Queries:\n${enhancedQueries.join(
+            "\n"
+          )}\n\nPrevious Model Response:\n${previousModelResponse}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const followUpSearchQueriesResponse = JSON.parse(
+      response.choices[0].message.content as string
+    ) as FollowUpSearchQueriesResponse;
+    return followUpSearchQueriesResponse;
+  } catch (error) {
+    console.error("Error in generateFollowUpSearchQueries:", error);
+
+    const openaiClient = getOpenAIClient();
+    const response = await openaiClient.beta.chat.completions.parse({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful assistant that generates follow-up search queries based on a list of enhanced queries and a previous model response. Your response should be a JSON object with the following schema: {queries: string[]}. You should return ${numQueries} queries.`,
+        },
+        {
+          role: "user",
+          content: `Enhanced Queries:\n${enhancedQueries.join(
+            "\n"
+          )}\n\nPrevious Model Response:\n${previousModelResponse}`,
+        },
+      ],
+      response_format: zodResponseFormat(
+        ZFollowUpSearchQueriesResponse,
+        "follow_up_search_queries_response"
+      ),
+    });
+
+    return response.choices[0].message.parsed;
+  }
 }

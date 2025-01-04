@@ -108,6 +108,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     //         },
     //       },
     //     ],
+    //     followUpSearchQueries: [
+    //       "React tutorials",
+    //       "React best practices",
+    //       "React tutorials",
+    //     ],
     //   },
     // },
   ]);
@@ -133,7 +138,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ...newAssistantMessage,
       };
       newMessages[newMessages.length - 1] = lastMessage;
-      console.log("Updated latest assistant message", lastMessage);
       return newMessages;
     });
   };

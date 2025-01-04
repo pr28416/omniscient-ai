@@ -49,18 +49,16 @@ export interface StreamedFinalAnswerRequest {
   sources: WebSource[];
 }
 
-// export interface GenerationStatus {
-//   // Search queries
-//   searchQueries?: string[];
-//   isDoneGeneratingSearchQueries?: boolean;
-
-//   // Final answer
-//   finalAnswer?: string;
-//   isDoneGeneratingFinalAnswer?: boolean;
-// }
-
 export interface ScrapeStatus {
   scrapeStatus: "not-started" | "in-progress" | "success" | "error";
   source: WebSource;
   error?: string;
 }
+
+export const ZFollowUpSearchQueriesResponse = z.object({
+  queries: z.array(z.string()),
+});
+
+export type FollowUpSearchQueriesResponse = z.infer<
+  typeof ZFollowUpSearchQueriesResponse
+>;

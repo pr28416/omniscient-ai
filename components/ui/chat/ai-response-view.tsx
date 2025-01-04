@@ -8,20 +8,19 @@ import {
   AccordionTrigger,
 } from "../accordion";
 import Image from "next/image";
-import { useEffect } from "react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../hover-card";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Button } from "../button";
+import { ArrowRight } from "lucide-react";
 
 export function AiResponseView({
   assistantMessage,
+  submitFollowUpSearchQueryCallback,
 }: {
   assistantMessage: AssistantMessage;
+  submitFollowUpSearchQueryCallback?: (query: string) => void;
 }) {
-  useEffect(() => {
-    console.log("received updated assistant message", assistantMessage);
-  }, [assistantMessage]);
-
   return (
     <div className="flex flex-col gap-8">
       {/* Search status cards */}
@@ -313,7 +312,7 @@ export function AiResponseView({
       </Accordion>
 
       {/* Final Answer */}
-      <div className="prose dark:prose-invert max-w-none [&>*]:my-5 [&_p]:leading-relaxed [&_p:not(:last-child)]:mb-2 [&_a]:inline-flex [&_a]:items-center [&_a]:gap-2 [&_a]:rounded [&_a]:bg-secondary [&_a]:px-1 [&_a]:py-0.5 [&_a]:border [&_a]:border-border [&_a]:text-sm [&_a]:text-primary [&_a]:font-bold [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:bg-card/80">
+      <div className="prose dark:prose-invert max-w-none [&>*]:my-5 [&_p]:leading-relaxed [&_p:not(:last-child)]:mb-2 [&_a]:inline-flex [&_a]:items-center [&_a]:gap-2 [&_a]:rounded [&_a]:bg-secondary [&_a]:px-1 [&_a]:py-0.5 [&_a]:border [&_a]:border-border [&_a]:text-sm [&_a]:text-primary [&_a]:font-bold [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:bg-card/80 [&_a]:mx-0.5">
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -370,6 +369,32 @@ export function AiResponseView({
           {assistantMessage.finalAnswer || "Generating answer..."}
         </Markdown>
       </div>
+
+      {/* Follow-up Questions */}
+      {assistantMessage.followUpSearchQueries &&
+        assistantMessage.followUpSearchQueries.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Related questions
+            </h3>
+            <div className="flex flex-row flex-wrap gap-2">
+              {assistantMessage.followUpSearchQueries.map((query, idx) => (
+                <Button
+                  key={idx}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    submitFollowUpSearchQueryCallback?.(query);
+                  }}
+                >
+                  {query}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
     </div>
   );
 }

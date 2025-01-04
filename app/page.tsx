@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/lib/chat/chat-context";
 import { Send, X, Pencil, Menu } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import {
   detailedWebsiteSummary,
@@ -11,6 +11,7 @@ import {
   optimizeRawSearchQuery,
   webscrape,
   getStreamedFinalAnswer,
+  generateFollowUpSearchQueries,
 } from "./api/search/services";
 import { AiResponseView } from "@/components/ui/chat/ai-response-view";
 import { BraveSearchResponse, ScrapeStatus } from "./api/search/schemas";
@@ -25,8 +26,6 @@ export default function Home() {
   } = useChat();
   const [isGenerating, setIsGenerating] = useState(false);
   const [input, setInput] = useState("");
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(
     null
@@ -44,31 +43,6 @@ export default function Home() {
       setIsGenerating(false);
     }
   };
-
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-
-    const { scrollTop, scrollHeight, clientHeight } =
-      scrollContainerRef.current;
-    const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 50;
-
-    if (isNearBottom !== shouldAutoScroll) {
-      setShouldAutoScroll(isNearBottom);
-    }
-  };
-
-  useEffect(() => {
-    if (shouldAutoScroll && scrollContainerRef.current) {
-      const timeoutId = setTimeout(() => {
-        scrollContainerRef.current?.scrollTo({
-          top: scrollContainerRef.current.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 50);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [messages, shouldAutoScroll]);
 
   const handleSubmit = async (query: string) => {
     cancelGeneration();
@@ -165,9 +139,12 @@ export default function Home() {
 
           const scrapeResponse = await webscrape(result.url);
           if (signal.aborted) throw new Error("Generation cancelled");
+          if (!scrapeResponse) {
+            throw new Error("Failed to scrape website");
+          }
 
           const summaryResponse = await detailedWebsiteSummary(
-            input,
+            query,
             scrapeResponse
           );
           if (signal.aborted) throw new Error("Generation cancelled");
@@ -199,7 +176,7 @@ export default function Home() {
 
       // Generate final answer with cancellation support
       const finalAnswer = await getStreamedFinalAnswer({
-        query: input,
+        query: query,
         sources: processedSearchResults.map((result) => result.source),
       });
 
@@ -216,17 +193,22 @@ export default function Home() {
       updateLatestAssistantMessage({
         isDoneGeneratingFinalAnswer: true,
       });
+
+      const followUpSearchQueriesResponse = await generateFollowUpSearchQueries(
+        optimizedQueries,
+        finalAnswerString
+      );
+
+      if (followUpSearchQueriesResponse) {
+        updateLatestAssistantMessage({
+          followUpSearchQueries: followUpSearchQueriesResponse.queries,
+        });
+      }
     } catch (error) {
       if ((error as Error).message === "Generation cancelled") {
         console.log("Generation was cancelled");
-        // updateLatestAssistantMessage({
-        //   error: "Generation was cancelled by user",
-        // });
       } else {
         console.error("Error during generation:", error);
-        // updateLatestAssistantMessage({
-        //   error: "An error occurred during generation",
-        // });
       }
     } finally {
       setIsGenerating(false);
@@ -260,6 +242,16 @@ export default function Home() {
     }
   };
 
+  const handleKeyPress = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    action: () => void
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      action();
+    }
+  };
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-col h-screen bg-background items-center justify-center p-4 text-foreground">
@@ -275,6 +267,12 @@ export default function Home() {
               onChange={(e) => setInput(e.target.value)}
               maxRows={3}
               minRows={3}
+              onKeyDown={(e) =>
+                handleKeyPress(e, () => {
+                  setInput("");
+                  handleSubmit(input);
+                })
+              }
             />
             <div className="flex flex-col gap-2 justify-end">
               <Button
@@ -305,11 +303,12 @@ export default function Home() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed left-0 top-0 mt-16 h-full bg-background z-50 transition-transform duration-300 ease-in-out",
+          "fixed left-0 top-0 h-full bg-background z-50 transition-transform duration-300 ease-in-out border-r-2 border-border overflow-y-auto",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full",
           "w-full max-w-md p-4 gap-2"
         )}
       >
+        <div className="h-12" />
         {messages.map((message, idx) => (
           <Button
             key={idx}
@@ -319,7 +318,7 @@ export default function Home() {
               setIsSidebarOpen(false);
             }}
             className={cn(
-              "w-full justify-start font-normal",
+              "w-full justify-start font-normal text-wrap text-left py-6 flex",
               activeMessageIndex === idx && "bg-accent"
             )}
           >
@@ -349,11 +348,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex flex-col h-screen w-full items-center">
         {/* Content */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-4xl overflow-y-auto gap-16"
-        >
+        <div className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-4xl overflow-y-auto gap-16">
           <div />
           {messages.map((message, idx) => (
             <div
@@ -367,6 +362,11 @@ export default function Home() {
                     className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
                     value={editingMessageContent}
                     onChange={(e) => setEditingMessageContent(e.target.value)}
+                    onKeyDown={(e) =>
+                      handleKeyPress(e, () =>
+                        handleEditMessage(idx, editingMessageContent)
+                      )
+                    }
                     maxRows={3}
                     minRows={1}
                   />
@@ -408,7 +408,12 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <AiResponseView assistantMessage={message.assistantMessage} />
+              <AiResponseView
+                assistantMessage={message.assistantMessage}
+                submitFollowUpSearchQueryCallback={(query) => {
+                  handleSubmit(query);
+                }}
+              />
             </div>
           ))}
         </div>
@@ -421,6 +426,16 @@ export default function Home() {
               placeholder="Ask a follow-up question..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) =>
+                handleKeyPress(e, () => {
+                  if (isGenerating) {
+                    cancelGeneration();
+                  } else if (input.length > 0) {
+                    setInput("");
+                    handleSubmit(input);
+                  }
+                })
+              }
               maxRows={2}
               minRows={1}
             />

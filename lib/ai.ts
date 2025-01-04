@@ -5,7 +5,8 @@ import FirecrawlApp from "@mendable/firecrawl-js";
 
 export function getCerebrasClient() {
   return new Cerebras({
-    apiKey: process.env.CEREBRAS_API_KEY,
+    // apiKey: process.env.CEREBRAS_API_KEY,
+    apiKey: process.env.CEREBRAS_API_KEY2,
   });
 }
 

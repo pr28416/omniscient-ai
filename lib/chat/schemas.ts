@@ -20,4 +20,7 @@ export interface AssistantMessage {
   // Final answer
   finalAnswer?: string;
   isDoneGeneratingFinalAnswer?: boolean;
+
+  // Follow-up search queries
+  followUpSearchQueries?: string[];
 }
