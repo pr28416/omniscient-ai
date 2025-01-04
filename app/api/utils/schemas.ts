@@ -5,3 +5,5 @@ export const ZDecisionSchema = z.object({
 });
 
 export type DecisionSchema = z.infer<typeof ZDecisionSchema>;
+
+export type Status = "not-started" | "in-progress" | "success" | "error";

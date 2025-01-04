@@ -89,7 +89,7 @@ export default function Home() {
     }
   };
 
-  if (messages.length === 0) {
+  if (!messages || messages.length === 0) {
     return (
       <div className="flex flex-col h-screen bg-background items-center justify-center p-4 text-foreground">
         <div className="flex flex-col gap-8 items-center w-full max-w-xl">

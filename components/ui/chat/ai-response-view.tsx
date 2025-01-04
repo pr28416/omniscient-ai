@@ -11,8 +11,21 @@ import Image from "next/image";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../hover-card";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import "katex/dist/katex.min.css";
 import { Button } from "../button";
 import { ArrowRight } from "lucide-react";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
+
+const preprocessLatex = (markdown: string): string => {
+  return (
+    markdown
+      // Replace display math \[...\] with $...$ (including multiline)
+      .replace(/\\\[([\s\S]+?)\\\]/g, (match, p1) => `$${p1}$`)
+      // Replace inline math \(...\) with $...$ (including multiline)
+      .replace(/\\\(([\s\S]+?)\\\)/g, (match, p1) => `$${p1}$`)
+  );
+};
 
 export function AiResponseView({
   assistantMessage,
@@ -21,6 +34,10 @@ export function AiResponseView({
   assistantMessage: AssistantMessage;
   submitFollowUpSearchQueryCallback?: (query: string) => void;
 }) {
+  const processedContent = assistantMessage.finalAnswer
+    ? preprocessLatex(assistantMessage.finalAnswer)
+    : "Generating answer...";
+
   return (
     <div className="flex flex-col gap-8">
       {/* Search status cards */}
@@ -314,7 +331,8 @@ export function AiResponseView({
       {/* Final Answer */}
       <div className="prose dark:prose-invert max-w-none [&>*]:my-5 [&_p]:leading-relaxed [&_p:not(:last-child)]:mb-2 [&_a]:inline-flex [&_a]:items-center [&_a]:gap-2 [&_a]:rounded [&_a]:bg-secondary [&_a]:px-1 [&_a]:py-0.5 [&_a]:border [&_a]:border-border [&_a]:text-sm [&_a]:text-primary [&_a]:font-bold [&_a]:no-underline [&_a]:transition-colors hover:[&_a]:bg-card/80 [&_a]:mx-0.5">
         <Markdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
           components={{
             a: ({ href, children }) => (
               <a href={href} target="_blank" rel="noopener noreferrer">
@@ -326,7 +344,7 @@ export function AiResponseView({
             ),
           }}
         >
-          {assistantMessage.finalAnswer || "Generating answer..."}
+          {processedContent}
         </Markdown>
       </div>
 

@@ -25,7 +25,7 @@ export async function optimizeRawSearchQuery(
     console.log("making cerebras search request");
     const cerebrasClient = getCerebrasClient();
     const response = await cerebrasClient.chat.completions.create({
-      model: "llama-3.3-70b",
+      model: "llama-3.1-8b",
       messages: [
         {
           role: "system",
@@ -148,7 +148,7 @@ export async function detailedWebsiteSummary(
       limitedChunks.map(async (chunk, idx) => {
         try {
           const client = getCerebrasClient();
-          const model = "llama-3.3-70b";
+          const model = Math.random() < 0.5 ? "llama-3.3-70b" : "llama-3.1-70b";
 
           const response = await (
             client as unknown as OpenAI
@@ -243,7 +243,7 @@ export async function* getStreamedFinalAnswer(
         content: `You are a helpful assistant that provides detailed answers formatted in markdown. 
 Use numerical references throughout the response in the format [number](url), where 'number' corresponds to the source number and 'url' is the source's URL. These references should appear at the end of every line that uses information from a source.
 
-Structure your response with headings, subheadings, lists, and tables when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section. 
+Structure your response with headings, subheadings, lists, and tables when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section.
 If you do not know the answer, respond with "I don't know" and explain why you cannot provide an answer.`,
       },
       {

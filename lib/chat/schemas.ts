@@ -1,5 +1,9 @@
-import { BraveWebSearchResponse } from "@/app/api/brave/schemas";
-import { ScrapeStatus } from "@/app/api/search/schemas";
+import {
+  BraveImageSearchResponse,
+  BraveWebSearchResponse,
+} from "@/app/api/brave/schemas";
+import { ImageScrapeStatus, ImageSource } from "@/app/api/image/schemas";
+import { WebScrapeStatus } from "@/app/api/search/schemas";
 
 export interface UserMessage {
   content: string;
@@ -10,13 +14,21 @@ export interface AssistantMessage {
   searchQueries?: string[];
   isDoneGeneratingSearchQueries?: boolean;
 
-  // Perform search
+  // Web search
   isDonePerformingSearch?: boolean;
   searchResults?: BraveWebSearchResponse;
 
-  // Process search results
+  // Process web search results
   isDoneProcessingSearchResults?: boolean;
-  processedSearchResults?: ScrapeStatus[];
+  processedSearchResults?: WebScrapeStatus[];
+
+  // Image search
+  isDonePerformingImageSearch?: boolean;
+  imageSearchResults?: BraveImageSearchResponse;
+
+  // Process image search results
+  isDoneProcessingImageSearchResults?: boolean;
+  processedImageSearchResults?: ImageScrapeStatus[];
 
   // Final answer
   finalAnswer?: string;
@@ -24,4 +36,14 @@ export interface AssistantMessage {
 
   // Follow-up search queries
   followUpSearchQueries?: string[];
+}
+
+export interface AiWebSearchResponse {
+  optimizedQueries: string[];
+  processedSearchResults: WebScrapeStatus[];
+}
+
+export interface AiImageSearchResponse {
+  optimizedQueries: string[];
+  imageSearchResults: ImageSource[];
 }

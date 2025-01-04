@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Status } from "../utils/schemas";
 
 export interface SearchRequest {
   query: string;
@@ -25,8 +26,8 @@ export interface StreamedFinalAnswerRequest {
   sources: WebSource[];
 }
 
-export interface ScrapeStatus {
-  scrapeStatus: "not-started" | "in-progress" | "success" | "error";
+export interface WebScrapeStatus {
+  scrapeStatus: Status;
   source: WebSource;
   error?: string;
 }
