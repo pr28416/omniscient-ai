@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  braveWebSearch,
   webscrape,
   optimizeRawSearchQuery,
   detailedWebsiteSummary,
   getStreamedFinalAnswer,
-} from "./services";
+} from "./actions";
 import { SearchRequest, WebSource } from "./schemas";
+import { braveWebSearch } from "../brave/actions";
 
 export async function POST(req: Request) {
   const { query } = (await req.json()) as SearchRequest;

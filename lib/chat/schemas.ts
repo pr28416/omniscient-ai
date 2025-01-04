@@ -1,4 +1,5 @@
-import { BraveWebSearchResponse, ScrapeStatus } from "@/app/api/search/schemas";
+import { BraveWebSearchResponse } from "@/app/api/brave/schemas";
+import { ScrapeStatus } from "@/app/api/search/schemas";
 
 export interface UserMessage {
   content: string;

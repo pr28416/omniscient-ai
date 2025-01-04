@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  braveImageSearch,
-  describeImage,
-  optimizeRawImageSearchQuery,
-} from "../search/services";
+import { describeImage } from "./actions";
+import { braveImageSearch } from "../brave/actions";
+import { optimizeRawImageSearchQuery } from "./actions";
 
 export async function POST(req: NextRequest) {
   const { query } = await req.json();

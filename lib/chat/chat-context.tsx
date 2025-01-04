@@ -10,6 +10,16 @@ import {
 } from "react";
 import { UserMessage } from "./schemas";
 import { AssistantMessage } from "./schemas";
+import {
+  detailedWebsiteSummary,
+  optimizeRawSearchQuery,
+  webscrape,
+  getStreamedFinalAnswer,
+  generateFollowUpSearchQueries,
+} from "@/app/api/search/actions";
+import { ScrapeStatus } from "@/app/api/search/schemas";
+import { BraveWebSearchResponse } from "@/app/api/brave/schemas";
+import { braveWebSearch } from "@/app/api/brave/actions";
 
 type Message = {
   userMessage: UserMessage;
@@ -22,6 +32,10 @@ interface ChatContextType {
   addUserMessage: (content: string) => void;
   updateLatestAssistantMessage: (newAssistantMessage: AssistantMessage) => void;
   clearMessages: () => void;
+  generateAssistantResponse: (
+    query: string,
+    signal: AbortSignal
+  ) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -146,6 +160,151 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setMessages([]);
   };
 
+  const generateAssistantResponse = async (
+    query: string,
+    signal: AbortSignal
+  ) => {
+    try {
+      addUserMessage(query);
+      if (signal.aborted) throw new Error("Generation cancelled");
+
+      const optimizedQueryResponse = await optimizeRawSearchQuery(query);
+      if (signal.aborted) throw new Error("Generation cancelled");
+
+      if (!optimizedQueryResponse) {
+        updateLatestAssistantMessage({
+          isDoneGeneratingSearchQueries: true,
+        });
+        return;
+      }
+
+      const { queries: optimizedQueries } = optimizedQueryResponse;
+      updateLatestAssistantMessage({
+        isDoneGeneratingSearchQueries: true,
+        searchQueries: optimizedQueries,
+      });
+
+      const allSearchResults: BraveWebSearchResponse = {
+        web: { results: [] },
+      };
+
+      for (const query of optimizedQueries) {
+        if (signal.aborted) throw new Error("Generation cancelled");
+
+        const singleChunkSearchResults = await braveWebSearch(query);
+
+        for (const result of singleChunkSearchResults.web.results) {
+          if (allSearchResults.web.results.length >= 5) break;
+          if (!allSearchResults.web.results.some((r) => r.url === result.url)) {
+            allSearchResults.web.results.push(result);
+          }
+        }
+
+        updateLatestAssistantMessage({
+          isDonePerformingSearch: true,
+          searchResults: allSearchResults,
+        });
+      }
+
+      if (signal.aborted) throw new Error("Generation cancelled");
+
+      const processedSearchResults: ScrapeStatus[] =
+        allSearchResults.web.results.map((result, idx) => ({
+          scrapeStatus: "not-started",
+          source: {
+            url: result.url,
+            title: result.title,
+            favicon: result.profile.img,
+            sourceNumber: idx + 1,
+          },
+        }));
+
+      for (const [idx, result] of allSearchResults.web.results.entries()) {
+        if (signal.aborted) throw new Error("Generation cancelled");
+
+        try {
+          processedSearchResults[idx].scrapeStatus = "in-progress";
+          updateLatestAssistantMessage({
+            processedSearchResults,
+            isDoneProcessingSearchResults: true,
+          });
+
+          const scrapeResponse = await webscrape(result.url);
+          if (signal.aborted) throw new Error("Generation cancelled");
+          if (!scrapeResponse) {
+            throw new Error("Failed to scrape website");
+          }
+
+          const summaryResponse = await detailedWebsiteSummary(
+            query,
+            scrapeResponse
+          );
+          if (signal.aborted) throw new Error("Generation cancelled");
+
+          if (!summaryResponse) {
+            throw new Error("Failed to summarize website");
+          }
+
+          processedSearchResults[idx].scrapeStatus = "success";
+          processedSearchResults[idx].source.summary = summaryResponse;
+          updateLatestAssistantMessage({
+            processedSearchResults,
+            isDoneProcessingSearchResults: true,
+          });
+        } catch (error) {
+          if ((error as Error).message === "Generation cancelled") throw error;
+
+          console.error(`Error processing ${result.url}:`, error);
+          processedSearchResults[idx].scrapeStatus = "error";
+          processedSearchResults[idx].error = (error as Error).message;
+          updateLatestAssistantMessage({
+            processedSearchResults,
+            isDoneProcessingSearchResults: true,
+          });
+        }
+      }
+
+      if (signal.aborted) throw new Error("Generation cancelled");
+
+      const finalAnswer = await getStreamedFinalAnswer({
+        query: query,
+        sources: processedSearchResults.map((result) => result.source),
+      });
+
+      let finalAnswerString = "";
+      for await (const chunk of finalAnswer) {
+        if (signal.aborted) throw new Error("Generation cancelled");
+        finalAnswerString += chunk || "";
+        updateLatestAssistantMessage({
+          finalAnswer: finalAnswerString,
+          isDoneGeneratingFinalAnswer: true,
+        });
+      }
+
+      updateLatestAssistantMessage({
+        isDoneGeneratingFinalAnswer: true,
+      });
+
+      const followUpSearchQueriesResponse = await generateFollowUpSearchQueries(
+        optimizedQueries,
+        finalAnswerString
+      );
+
+      if (followUpSearchQueriesResponse) {
+        updateLatestAssistantMessage({
+          followUpSearchQueries: followUpSearchQueriesResponse.queries,
+        });
+      }
+    } catch (error) {
+      if ((error as Error).message === "Generation cancelled") {
+        console.log("Generation was cancelled");
+      } else {
+        console.error("Error during generation:", error);
+      }
+      throw error;
+    }
+  };
+
   return (
     <ChatContext.Provider
       value={{
@@ -154,6 +313,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         addUserMessage,
         updateLatestAssistantMessage,
         clearMessages,
+        generateAssistantResponse,
       }}
     >
       {children}

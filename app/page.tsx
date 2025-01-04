@@ -5,25 +5,11 @@ import { useChat } from "@/lib/chat/chat-context";
 import { Send, X, Pencil, Menu } from "lucide-react";
 import { useState, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import {
-  detailedWebsiteSummary,
-  braveWebSearch,
-  optimizeRawSearchQuery,
-  webscrape,
-  getStreamedFinalAnswer,
-  generateFollowUpSearchQueries,
-} from "./api/search/services";
 import { AiResponseView } from "@/components/ui/chat/ai-response-view";
-import { BraveWebSearchResponse, ScrapeStatus } from "./api/search/schemas";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
-  const {
-    messages,
-    addUserMessage,
-    updateLatestAssistantMessage,
-    setMessages,
-  } = useChat();
+  const { messages, setMessages, generateAssistantResponse } = useChat();
   const [isGenerating, setIsGenerating] = useState(false);
   const [input, setInput] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -58,149 +44,9 @@ export default function Home() {
 
     try {
       setIsGenerating(true);
-      if (signal.aborted) throw new Error("Generation cancelled");
-
-      addUserMessage(query);
-      if (signal.aborted) throw new Error("Generation cancelled");
-
-      const optimizedQueryResponse = await optimizeRawSearchQuery(query);
-      if (signal.aborted) throw new Error("Generation cancelled");
-
-      if (!optimizedQueryResponse) {
-        updateLatestAssistantMessage({
-          isDoneGeneratingSearchQueries: true,
-        });
-        return;
-      }
-
-      const { queries: optimizedQueries } = optimizedQueryResponse;
-      updateLatestAssistantMessage({
-        isDoneGeneratingSearchQueries: true,
-        searchQueries: optimizedQueries,
-      });
-
-      const allSearchResults: BraveWebSearchResponse = {
-        web: { results: [] },
-      };
-
-      // Modify the search results accumulation to handle cancellation
-      for (const query of optimizedQueries) {
-        if (signal.aborted) throw new Error("Generation cancelled");
-
-        const singleChunkSearchResults = await braveWebSearch(query);
-
-        // Add web results if URL doesn't already exist, up to 10 total
-        for (const result of singleChunkSearchResults.web.results) {
-          if (allSearchResults.web.results.length >= 5) break;
-          if (!allSearchResults.web.results.some((r) => r.url === result.url)) {
-            allSearchResults.web.results.push(result);
-          }
-        }
-
-        updateLatestAssistantMessage({
-          isDonePerformingSearch: true,
-          searchResults: allSearchResults,
-        });
-      }
-
-      if (signal.aborted) throw new Error("Generation cancelled");
-
-      // Process results with cancellation checks
-      const processedSearchResults: ScrapeStatus[] =
-        allSearchResults.web.results.map((result, idx) => ({
-          scrapeStatus: "not-started",
-          source: {
-            url: result.url,
-            title: result.title,
-            favicon: result.profile.img,
-            sourceNumber: idx + 1,
-          },
-        }));
-
-      // Modify the website processing to handle cancellation
-      for (const [idx, result] of allSearchResults.web.results.entries()) {
-        if (signal.aborted) throw new Error("Generation cancelled");
-
-        try {
-          processedSearchResults[idx].scrapeStatus = "in-progress";
-          updateLatestAssistantMessage({
-            processedSearchResults,
-            isDoneProcessingSearchResults: true,
-          });
-
-          const scrapeResponse = await webscrape(result.url);
-          if (signal.aborted) throw new Error("Generation cancelled");
-          if (!scrapeResponse) {
-            throw new Error("Failed to scrape website");
-          }
-
-          const summaryResponse = await detailedWebsiteSummary(
-            query,
-            scrapeResponse
-          );
-          if (signal.aborted) throw new Error("Generation cancelled");
-
-          if (!summaryResponse) {
-            throw new Error("Failed to summarize website");
-          }
-
-          processedSearchResults[idx].scrapeStatus = "success";
-          processedSearchResults[idx].source.summary = summaryResponse;
-          updateLatestAssistantMessage({
-            processedSearchResults,
-            isDoneProcessingSearchResults: true,
-          });
-        } catch (error) {
-          if ((error as Error).message === "Generation cancelled") throw error;
-
-          console.error(`Error processing ${result.url}:`, error);
-          processedSearchResults[idx].scrapeStatus = "error";
-          processedSearchResults[idx].error = (error as Error).message;
-          updateLatestAssistantMessage({
-            processedSearchResults,
-            isDoneProcessingSearchResults: true,
-          });
-        }
-      }
-
-      if (signal.aborted) throw new Error("Generation cancelled");
-
-      // Generate final answer with cancellation support
-      const finalAnswer = await getStreamedFinalAnswer({
-        query: query,
-        sources: processedSearchResults.map((result) => result.source),
-      });
-
-      let finalAnswerString = "";
-      for await (const chunk of finalAnswer) {
-        if (signal.aborted) throw new Error("Generation cancelled");
-        finalAnswerString += chunk || "";
-        updateLatestAssistantMessage({
-          finalAnswer: finalAnswerString,
-          isDoneGeneratingFinalAnswer: true,
-        });
-      }
-
-      updateLatestAssistantMessage({
-        isDoneGeneratingFinalAnswer: true,
-      });
-
-      const followUpSearchQueriesResponse = await generateFollowUpSearchQueries(
-        optimizedQueries,
-        finalAnswerString
-      );
-
-      if (followUpSearchQueriesResponse) {
-        updateLatestAssistantMessage({
-          followUpSearchQueries: followUpSearchQueriesResponse.queries,
-        });
-      }
+      await generateAssistantResponse(query, signal);
     } catch (error) {
-      if ((error as Error).message === "Generation cancelled") {
-        console.log("Generation was cancelled");
-      } else {
-        console.error("Error during generation:", error);
-      }
+      console.log(error);
     } finally {
       setIsGenerating(false);
       abortControllerRef.current = null;
@@ -247,9 +93,7 @@ export default function Home() {
     return (
       <div className="flex flex-col h-screen bg-background items-center justify-center p-4 text-foreground">
         <div className="flex flex-col gap-8 items-center w-full max-w-xl">
-          <h1 className="text-3xl font-bold tracking-tighter">
-            AI Product Lookup
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tighter">Omniscient AI</h1>
           <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full p-2">
             <TextareaAutosize
               className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
