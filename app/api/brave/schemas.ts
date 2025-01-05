@@ -16,6 +16,9 @@ export interface BraveImageSearchResponse {
   results: Array<{
     title: string;
     url: string;
+    thumbnail: {
+      src: string;
+    };
     properties: {
       url: string;
     };

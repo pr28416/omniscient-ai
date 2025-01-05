@@ -2,7 +2,7 @@ import {
   BraveImageSearchResponse,
   BraveWebSearchResponse,
 } from "@/app/api/brave/schemas";
-import { ImageScrapeStatus, ImageSource } from "@/app/api/image/schemas";
+import { ImageScrapeStatus } from "@/app/api/image/schemas";
 import { WebScrapeStatus } from "@/app/api/search/schemas";
 
 export interface UserMessage {
@@ -21,6 +21,9 @@ export interface AssistantMessage {
   // Process web search results
   isDoneProcessingSearchResults?: boolean;
   processedSearchResults?: WebScrapeStatus[];
+
+  // Image search queries
+  imageSearchQueries?: string[];
 
   // Image search
   isDonePerformingImageSearch?: boolean;
@@ -45,5 +48,5 @@ export interface AiWebSearchResponse {
 
 export interface AiImageSearchResponse {
   optimizedQueries: string[];
-  imageSearchResults: ImageSource[];
+  processedImageSearchResults: ImageScrapeStatus[];
 }

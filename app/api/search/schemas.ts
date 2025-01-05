@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Status } from "../utils/schemas";
+import { ImageSource } from "../image/schemas";
 
 export interface SearchRequest {
   query: string;
@@ -24,6 +25,7 @@ export interface WebSource {
 export interface StreamedFinalAnswerRequest {
   query: string;
   sources: WebSource[];
+  imageSources: ImageSource[];
 }
 
 export interface WebScrapeStatus {

@@ -57,33 +57,54 @@ export async function describeImage(
   title: string,
   imageUrl: string
 ): Promise<string | null> {
-  console.log("describing image: ", title, imageUrl);
-  const groqClient = getGroqClient();
-  const imageData = await fetch(imageUrl).then((res) => res.arrayBuffer());
-  const imageDataBase64 = Buffer.from(imageData).toString("base64");
-  const response = await groqClient.chat.completions.create({
-    model: "llama-3.2-11b-vision-preview",
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `You are an assistant that evaluates images. You are given an image with title: "${title}". Given this and the image, write a detailed description of what is in the image and what the image is about.`,
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:image/jpeg;base64,${imageDataBase64}`,
+  try {
+    console.log("describing image: ", title, imageUrl);
+    const groqClient = getGroqClient();
+    const imageData = await fetch(imageUrl, { mode: "no-cors" })
+      .then((res) => res.arrayBuffer())
+      .catch(async () => {
+        const response = await fetch(imageUrl);
+        return response.arrayBuffer();
+      });
+    const imageDataBase64 = Buffer.from(imageData).toString("base64");
+    const model =
+      Math.random() < 0.75
+        ? "llama-3.2-11b-vision-preview"
+        : "llama-3.2-90b-vision-preview";
+    const response = await groqClient.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `You are an assistant that evaluates images. You are given an image with title: "${title}". Given this and the image, write a detailed description of what is in the image and what the image is about.`,
             },
-          },
-        ],
-      },
-    ],
-    max_tokens: 2048,
-    temperature: 0.2,
-    top_p: 1,
-    stream: false,
-  });
-  return response.choices[0].message.content;
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${imageDataBase64}`,
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 384,
+      temperature: 0.2,
+      top_p: 1,
+      stream: true,
+    });
+    let content = "";
+    for await (const chunk of response) {
+      content += chunk.choices[0]?.delta?.content || "";
+    }
+    return content;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Generation cancelled");
+    }
+    console.error(error);
+    return null;
+  }
 }

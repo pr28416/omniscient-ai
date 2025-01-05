@@ -183,7 +183,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex flex-col h-screen w-full items-center">
         {/* Content */}
-        <div className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-4xl overflow-y-auto gap-16">
+        <div className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-5xl overflow-y-auto gap-16">
           <div />
           {messages.map((message, idx) => (
             <div

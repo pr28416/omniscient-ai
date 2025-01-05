@@ -1,5 +1,6 @@
 "use server";
 
+import axios from "axios";
 import { getCerebrasClient, getGroqClient, getOpenAIClient } from "@/lib/ai";
 import { ChatCompletion } from "openai/resources/index.mjs";
 import {
@@ -62,54 +63,43 @@ export async function optimizeRawSearchQuery(
 
 export async function webscrape(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url, {
+    const response = await axios.get(url, {
+      timeout: 10000, // Reduced timeout to 10 seconds
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Encoding": "gzip, deflate",
       },
-      // Add timeout and redirect handling
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-      redirect: "follow",
+      maxRedirects: 3,
+      decompress: true, // Handle gzipped responses automatically
+      validateStatus: (status) => status < 400, // Only accept successful responses
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // Quick validation of content type
+    const contentType = response.headers["content-type"] || "";
+    if (!contentType.includes("html")) {
+      return null;
     }
-    const html = await response.text();
 
     const nhm = new NodeHtmlMarkdown({
+      // Simplified ignore list for faster processing
       ignore: [
         "script",
         "style",
         "iframe",
         "noscript",
-        "form",
-        "button",
-        "a",
-        "input",
-        "nav",
-        "footer",
-        "header",
-        "aside",
         "svg",
         "img",
         "video",
         "audio",
-        "canvas",
-        "select",
-        "textarea",
-        "meta",
-        "link",
-        "advertisement",
       ],
       keepDataImages: false,
-      maxConsecutiveNewlines: 2,
+      maxConsecutiveNewlines: 1,
       bulletMarker: "*",
     });
 
-    // Convert HTML to Markdown text
-    const markdown = nhm.translate(html);
-
+    const markdown = nhm.translate(response.data);
     return markdown;
   } catch (error) {
     console.error("Error fetching page:", error);
@@ -225,12 +215,19 @@ export async function detailedWebsiteSummary(
 export async function* getStreamedFinalAnswer(
   streamedFinalAnswerRequest: StreamedFinalAnswerRequest
 ) {
-  const { query, sources } = streamedFinalAnswerRequest;
+  const { query, sources, imageSources } = streamedFinalAnswerRequest;
 
   const sourceContext = sources
     .map(
       (source) =>
         `Source ${source.sourceNumber} (${source.url}): ${source.title}\n${source.summary}`
+    )
+    .join("\n\n");
+
+  const imageSourceContext = imageSources
+    .map(
+      (source) =>
+        `Image Source ${source.sourceNumber} (${source.imgUrl}): ${source.title}\n${source.summary}`
     )
     .join("\n\n");
 
@@ -241,14 +238,20 @@ export async function* getStreamedFinalAnswer(
       {
         role: "system",
         content: `You are a helpful assistant that provides detailed answers formatted in markdown. 
-Use numerical references throughout the response in the format [number](url), where 'number' corresponds to the source number and 'url' is the source's URL. These references should appear at the end of every line that uses information from a source.
+Use numerical references throughout the response in the format [number](url), where 'number' corresponds to the source number and 'url' is the source's URL. These references should appear at the end of every line that uses information from a source. ${
+          imageSources.length > 0
+            ? "\n\nYou are also given image sources that you can use to answer the question. Wherever images are relevant throughout your response, use the image sources to answer the question using ![title](url)."
+            : ""
+        }
 
-Structure your response with headings, subheadings, lists, and tables when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section.
+Structure your final answer with headings, subheadings, lists, and tables when appropriate to make the content scannable. Ensure every key claim, fact, or piece of information is cited. Do not include a separate references section.
 If you do not know the answer, respond with "I don't know" and explain why you cannot provide an answer.`,
       },
       {
         role: "user",
-        content: `Question: ${query}\n\nSources:\n${sourceContext}`,
+        content: `Question: ${query}${
+          sourceContext ? `\n\nSources:\n${sourceContext}` : ""
+        }${imageSourceContext ? `\n\nImages:\n${imageSourceContext}` : ""}`,
       },
     ],
     stream: true,
