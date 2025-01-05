@@ -56,6 +56,7 @@ export async function POST(req: Request) {
   const stream = await getStreamedFinalAnswer({
     query,
     sources: validResults,
+    imageSources: [],
   });
 
   // return NextResponse.json({ streamedFinalAnswer: stream });
