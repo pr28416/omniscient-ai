@@ -57,6 +57,10 @@ export async function describeImage(
   title: string,
   imageUrl: string
 ): Promise<string | null> {
+  // const delay = Math.floor(Math.random() * 201) + 900; // Random delay between 900 and 1100 ms
+  // await new Promise((resolve) => setTimeout(resolve, delay));
+  // return "test";
+
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error("Image description timed out")), 5000)
   );

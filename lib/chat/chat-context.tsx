@@ -15,22 +15,16 @@ import {
 } from "./schemas";
 import { AssistantMessage } from "./schemas";
 import {
-  detailedWebsiteSummary,
   optimizeRawSearchQuery,
-  webscrape,
   getStreamedFinalAnswer,
   generateFollowUpSearchQueries,
 } from "@/app/api/search/actions";
-import { WebScrapeStatus } from "@/app/api/search/schemas";
+import { SearchResponse, WebScrapeStatus } from "@/app/api/search/schemas";
 import {
   BraveImageSearchResponse,
   BraveWebSearchResponse,
 } from "@/app/api/brave/schemas";
 import { braveImageSearch, braveWebSearch } from "@/app/api/brave/actions";
-import {
-  describeImage,
-  optimizeRawImageSearchQuery,
-} from "@/app/api/image/actions";
 import { decision } from "@/app/api/utils/actions";
 import { ImageScrapeStatus } from "@/app/api/image/schemas";
 
@@ -306,49 +300,105 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         },
       }));
 
-    const processPromises = allSearchResults.web.results.map(
-      async (result, idx) => {
-        if (signal.aborted) throw new Error("Generation cancelled");
+    const startTime = performance.now();
 
-        try {
-          processedSearchResults[idx].scrapeStatus = "in-progress";
-          updateLatestAssistantMessage({
-            processedSearchResults,
-            isDoneProcessingSearchResults: true,
-          });
+    console.log("Start time: ", startTime);
 
-          const scrapeResponse = await webscrape(result.url);
-          if (signal.aborted) throw new Error("Generation cancelled");
-          if (!scrapeResponse) {
-            throw new Error("Failed to scrape website");
-          }
+    const processPromises = processedSearchResults.map(async (result, idx) => {
+      if (signal.aborted) throw new Error("Generation cancelled");
+      if (signal.aborted) throw new Error("Generation cancelled");
 
-          const summaryResponse = await detailedWebsiteSummary(
-            query,
-            scrapeResponse
-          );
-          if (signal.aborted) throw new Error("Generation cancelled");
+      console.log(
+        "(",
+        ((performance.now() - startTime) / 1000).toFixed(2),
+        ") Processing search result ",
+        idx
+      );
 
-          if (!summaryResponse) {
-            throw new Error("Failed to summarize website");
-          }
-
-          processedSearchResults[idx].scrapeStatus = "success";
-          processedSearchResults[idx].source.summary = summaryResponse;
-        } catch (error) {
-          if ((error as Error).message === "Generation cancelled") throw error;
-
-          console.error(`Error processing ${result.url}:`, error);
-          processedSearchResults[idx].scrapeStatus = "error";
-          processedSearchResults[idx].error = (error as Error).message;
-        }
-
+      try {
+        processedSearchResults[idx].scrapeStatus = "in-progress";
         updateLatestAssistantMessage({
           processedSearchResults,
           isDoneProcessingSearchResults: true,
         });
+
+        console.log(
+          "(",
+          ((performance.now() - startTime) / 1000).toFixed(2),
+          ") Marked scrape status as starting for index ",
+          idx
+        );
+
+        // const scrapeResponse = await webscrape(result.source.url);
+        const { scrapeResponse }: { scrapeResponse: string | null } = await (
+          await fetch("/api/search/webscrape", {
+            method: "POST",
+            body: JSON.stringify({ url: result.source.url }),
+          })
+        ).json();
+
+        console.log(
+          "(",
+          ((performance.now() - startTime) / 1000).toFixed(2),
+          ") Scraped website for index ",
+          idx
+        );
+        if (signal.aborted) throw new Error("Generation cancelled");
+        if (!scrapeResponse) {
+          throw new Error("Failed to scrape website");
+        }
+
+        console.log(
+          "(",
+          ((performance.now() - startTime) / 1000).toFixed(2),
+          ") Summarizing website for index ",
+          idx
+        );
+
+        const { summaryResponse }: { summaryResponse: string | null } = await (
+          await fetch("/api/search/summary", {
+            method: "POST",
+            body: JSON.stringify({ query, scrapeResponse }),
+          })
+        ).json();
+
+        if (signal.aborted) throw new Error("Generation cancelled");
+
+        console.log(
+          "(",
+          ((performance.now() - startTime) / 1000).toFixed(2),
+          ") Summarized website for index ",
+          idx
+        );
+
+        if (!summaryResponse) {
+          throw new Error("Failed to summarize website");
+        }
+
+        processedSearchResults[idx].scrapeStatus = "success";
+        processedSearchResults[idx].source.summary = summaryResponse;
+      } catch (error) {
+        if ((error as Error).message === "Generation cancelled") throw error;
+
+        console.error(`Error processing ${result.source.url}:`, error);
+        processedSearchResults[idx].scrapeStatus = "error";
+        processedSearchResults[idx].error = (error as Error).message;
       }
-    );
+
+      updateLatestAssistantMessage({
+        processedSearchResults,
+        isDoneProcessingSearchResults: true,
+      });
+
+      console.log(
+        "(",
+        ((performance.now() - startTime) / 1000).toFixed(2),
+        ") Update happened for index ",
+        idx
+      );
+    });
+
+    console.log("Processed search results: ", processedSearchResults);
 
     await Promise.allSettled(processPromises);
 
@@ -379,7 +429,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       console.log("Image search needed");
     }
 
-    const optimizedQueryResponse = await optimizeRawImageSearchQuery(query);
+    const {
+      optimizedQueryResponse,
+    }: {
+      optimizedQueryResponse: SearchResponse | null;
+    } = (await (
+      await fetch("/api/image/optimize-query", {
+        method: "POST",
+        body: JSON.stringify({ query }),
+      })
+    ).json()) as { optimizedQueryResponse: SearchResponse | null };
     if (signal.aborted) throw new Error("Generation cancelled");
 
     if (!optimizedQueryResponse) {
@@ -409,15 +468,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       for (const result of singleChunkImageSearchResults.results) {
         // Attempt to fetch the image. if success, keep it. if error, skip it.
-        // try {
-        //   const image = await fetch(result.properties.url, { mode: "no-cors" });
-        //   if (!image) {
-        //     throw new Error("Failed to fetch image");
-        //   }
-        // } catch (error) {
-        //   console.error(`Error fetching ${result.properties.url}:`, error);
-        //   continue;
-        // }
+        try {
+          const image = await fetch(result.properties.url, { mode: "no-cors" });
+          if (!image) {
+            throw new Error("Failed to fetch image");
+          }
+        } catch (error) {
+          console.error(`Error fetching ${result.properties.url}:`, error);
+          continue;
+        }
 
         if (allImageSearchResults.results.length >= 6) break;
         if (!allImageSearchResults.results.some((r) => r.url === result.url)) {
@@ -476,10 +535,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             processedImageSearchResults,
           });
 
-          const imageDescription = await describeImage(
-            result.source.title,
-            result.source.imgUrl
-          );
+          const { imageDescription }: { imageDescription: string | null } =
+            await (
+              await fetch("/api/image/describe", {
+                method: "POST",
+                body: JSON.stringify({
+                  title: result.source.title,
+                  imageUrl: result.source.imgUrl,
+                }),
+              })
+            ).json();
 
           if (signal.aborted) throw new Error("Generation cancelled");
 
@@ -559,6 +624,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const finalAnswer = await getStreamedFinalAnswer({
         query: query,
         sources: processedSearchResults.map((result) => result.source),
+        // imageSources: [],
         imageSources: processedImageSearchResults
           .filter((result) => result.scrapeStatus === "success")
           .map((result) => result.source),
