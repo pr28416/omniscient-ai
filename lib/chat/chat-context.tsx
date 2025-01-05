@@ -225,13 +225,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           isDoneProcessingSearchResults: true,
         });
 
-        console.log(
-          "(",
-          ((performance.now() - startTime) / 1000).toFixed(2),
-          ") Marked scrape status as starting for index ",
-          idx
-        );
-
         // const scrapeResponse = await webscrape(result.source.url);
         const { scrapeResponse }: { scrapeResponse: string | null } = await (
           await fetch("/api/search/webscrape", {
@@ -240,23 +233,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           })
         ).json();
 
-        console.log(
-          "(",
-          ((performance.now() - startTime) / 1000).toFixed(2),
-          ") Scraped website for index ",
-          idx
-        );
         if (signal.aborted) throw new Error("Generation cancelled");
         if (!scrapeResponse) {
           throw new Error("Failed to scrape website");
         }
-
-        console.log(
-          "(",
-          ((performance.now() - startTime) / 1000).toFixed(2),
-          ") Summarizing website for index ",
-          idx
-        );
 
         const { summaryResponse }: { summaryResponse: string | null } = await (
           await fetch("/api/search/summary", {
@@ -266,13 +246,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ).json();
 
         if (signal.aborted) throw new Error("Generation cancelled");
-
-        console.log(
-          "(",
-          ((performance.now() - startTime) / 1000).toFixed(2),
-          ") Summarized website for index ",
-          idx
-        );
 
         if (!summaryResponse) {
           throw new Error("Failed to summarize website");
@@ -292,13 +265,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         processedSearchResults,
         isDoneProcessingSearchResults: true,
       });
-
-      console.log(
-        "(",
-        ((performance.now() - startTime) / 1000).toFixed(2),
-        ") Update happened for index ",
-        idx
-      );
     });
 
     console.log("Processed search results: ", processedSearchResults);
@@ -492,6 +458,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     query: string,
     signal: AbortSignal
   ): Promise<void> => {
+    query = query.trim();
     try {
       await addUserMessage(query);
       if (signal.aborted) throw new Error("Generation cancelled");

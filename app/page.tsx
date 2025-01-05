@@ -100,9 +100,10 @@ export default function Home() {
 
   const handleKeyPress = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
-    action: () => void
+    action: () => void,
+    content: string
   ) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && content.trim().length > 0) {
       e.preventDefault();
       action();
     }
@@ -117,10 +118,19 @@ export default function Home() {
 
   return (
     <div className="flex flex-row h-screen bg-background">
-      {/* Sidebar - remove padding when closed */}
+      {/* Overlay */}
       <div
         className={cn(
-          "absolute md:relative h-full bg-background overflow-y-auto",
+          "fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden",
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed md:relative h-full bg-background overflow-y-auto z-50",
           "transition-all duration-300 ease-in-out bg-card",
           isSidebarOpen
             ? "w-80 translate-x-0 p-4 border-r-2 border-border"
@@ -286,10 +296,14 @@ export default function Home() {
                   maxRows={3}
                   minRows={3}
                   onKeyDown={(e) =>
-                    handleKeyPress(e, () => {
-                      setInput("");
-                      handleSubmit(input);
-                    })
+                    handleKeyPress(
+                      e,
+                      () => {
+                        setInput("");
+                        handleSubmit(input);
+                      },
+                      input
+                    )
                   }
                 />
                 <div className="flex flex-col gap-2 justify-end">
@@ -329,7 +343,7 @@ export default function Home() {
                       className="flex flex-col w-full gap-8 h-auto min-h-fit"
                     >
                       {editingMessageIndex === idx ? (
-                        <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full p-2">
+                        <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full p-2 mt-8">
                           <TextareaAutosize
                             className="w-full resize-none bg-transparent placeholder:text-muted-foreground focus:outline-none p-2"
                             value={editingMessageContent}
@@ -337,8 +351,11 @@ export default function Home() {
                               setEditingMessageContent(e.target.value)
                             }
                             onKeyDown={(e) =>
-                              handleKeyPress(e, () =>
-                                handleEditMessage(idx, editingMessageContent)
+                              handleKeyPress(
+                                e,
+                                () =>
+                                  handleEditMessage(idx, editingMessageContent),
+                                editingMessageContent
                               )
                             }
                             maxRows={3}
@@ -368,7 +385,7 @@ export default function Home() {
                         </div>
                       ) : (
                         <div
-                          className="group relative w-full cursor-pointer"
+                          className="group relative w-full cursor-pointer mt-8"
                           onClick={() => {
                             setEditingMessageIndex(idx);
                             setEditingMessageContent(
@@ -405,14 +422,18 @@ export default function Home() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) =>
-                    handleKeyPress(e, () => {
-                      if (isGenerating) {
-                        cancelGeneration();
-                      } else if (input.length > 0) {
-                        setInput("");
-                        handleSubmit(input);
-                      }
-                    })
+                    handleKeyPress(
+                      e,
+                      () => {
+                        if (isGenerating) {
+                          cancelGeneration();
+                        } else if (input.length > 0) {
+                          setInput("");
+                          handleSubmit(input);
+                        }
+                      },
+                      input
+                    )
                   }
                   maxRows={2}
                   minRows={1}
