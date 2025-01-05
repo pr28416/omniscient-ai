@@ -170,6 +170,7 @@ function ImageResultsView({
               <DialogTitle className="flex items-center gap-2">
                 {imageResults[selectedImageIndex]?.source.title}
                 <a
+                  title="Open in new tab"
                   href={imageResults[selectedImageIndex]?.source.webUrl}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -237,7 +238,7 @@ export function AiResponseView({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8">
         {/* Search status cards */}
         <div className="flex-1">
           <Accordion

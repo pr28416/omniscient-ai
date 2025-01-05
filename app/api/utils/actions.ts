@@ -87,3 +87,28 @@ export async function decision(
     return decision?.decision ?? false;
   }
 }
+
+export async function createSessionTitle(query: string): Promise<string> {
+  try {
+    const groqClient = getGroqClient();
+
+    const response = await groqClient.chat.completions.create({
+      model: "llama3-8b-8192",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a session title creator. You will be given a query. You must create a title for a session that is a single sentence using fewer than 8 words that captures the essence of the query.",
+        },
+        { role: "user", content: query },
+      ],
+    });
+
+    const title = response.choices[0].message.content;
+
+    return title?.replace(/^"|"$/g, "") ?? query;
+  } catch (error) {
+    console.error(error);
+    return query;
+  }
+}

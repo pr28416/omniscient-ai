@@ -50,3 +50,15 @@ export interface AiImageSearchResponse {
   optimizedQueries: string[];
   processedImageSearchResults: ImageScrapeStatus[];
 }
+
+export interface Message {
+  userMessage: UserMessage;
+  assistantMessage: AssistantMessage;
+}
+
+export interface Session {
+  id: string;
+  messages: Message[];
+  title: string;
+  hasTitleBeenSet: boolean;
+}
