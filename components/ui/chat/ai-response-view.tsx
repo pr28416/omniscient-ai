@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Link,
-  CheckCircle,
   XCircle,
   Loader2,
   Circle,
