@@ -64,7 +64,7 @@ export async function optimizeRawSearchQuery(
 export async function webscrape(url: string): Promise<string | null> {
   try {
     const response = await axios.get(url, {
-      timeout: 10000, // Reduced timeout to 10 seconds
+      timeout: 5000, // Reduced timeout to 5 seconds
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
