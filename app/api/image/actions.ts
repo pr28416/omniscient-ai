@@ -62,7 +62,7 @@ export async function describeImage(
   // return "test";
 
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("Image description timed out")), 5000)
+    setTimeout(() => reject(new Error("Image description timed out")), 10000)
   );
 
   try {

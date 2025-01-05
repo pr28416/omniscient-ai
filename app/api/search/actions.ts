@@ -239,7 +239,7 @@ export async function* getStreamedFinalAnswer(
         content: `You are a helpful assistant that provides detailed answers formatted in markdown. 
 Use numerical references throughout the response in the format [number](url), where 'number' corresponds to the source number and 'url' is the source's URL. These references should appear at the end of every line that uses information from a source. ${
           imageSources.length > 0
-            ? "\n\nYou are also given image sources that you can use to answer the question. Wherever images are relevant throughout your response, use the image sources to answer the question using ![title](url)."
+            ? "\n\nYou are also given image sources that you can use to answer the question. Wherever images are relevant throughout your response, use the image sources to answer the question using ![title](url). Any image url you use must be one that's given to you."
             : ""
         }
 

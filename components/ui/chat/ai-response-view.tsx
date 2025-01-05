@@ -50,6 +50,8 @@ function ImageResultsView({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const limit = 6;
+
   const handlePrevious = () => {
     setSelectedImageIndex((prev) =>
       prev > 0 ? prev - 1 : imageResults.length - 1
@@ -82,11 +84,11 @@ function ImageResultsView({
 
       <h3 className="text-sm font-medium">Related Images</h3>
       <div className="grid grid-cols-2 gap-2">
-        {imageResults.slice(0, 4).map((result, idx) => (
+        {imageResults.slice(0, 6).map((result, idx) => (
           <button
             title={result.source.title}
             key={idx}
-            className="relative aspect-square overflow-hidden rounded-lg border"
+            className="relative aspect-[4/3] overflow-hidden rounded-lg border"
             onClick={() => {
               setSelectedImageIndex(idx);
               setIsDialogOpen(true);
@@ -116,7 +118,7 @@ function ImageResultsView({
           </button>
         ))}
       </div>
-      {imageResults.length > 4 && (
+      {imageResults.length > limit && (
         <Button
           variant="outline"
           size="sm"
@@ -125,7 +127,7 @@ function ImageResultsView({
             setIsDialogOpen(true);
           }}
         >
-          View {imageResults.length - 4} more
+          View {imageResults.length - limit} more
         </Button>
       )}
 

@@ -181,7 +181,7 @@ export default function Home() {
       </Button>
 
       {/* Main Content */}
-      <div className="flex flex-col h-screen w-full items-center">
+      <div className="flex flex-col h-screen w-full items-center overflow-none">
         {/* Content */}
         <div className="flex flex-col h-full bg-background px-4 pt-8 pb-0 w-full max-w-5xl overflow-y-auto gap-16">
           <div />
