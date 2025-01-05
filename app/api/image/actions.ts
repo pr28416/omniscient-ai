@@ -57,6 +57,29 @@ export async function describeImage(
   title: string,
   imageUrl: string
 ): Promise<string | null> {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Image description timed out")), 5000)
+  );
+
+  try {
+    const result = await Promise.race([
+      describeImageImpl(title, imageUrl),
+      timeout,
+    ]);
+    return result as string | null;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Generation cancelled");
+    }
+    console.error("Error describing image:", error);
+    return null;
+  }
+}
+
+async function describeImageImpl(
+  title: string,
+  imageUrl: string
+): Promise<string | null> {
   try {
     console.log("describing image: ", title, imageUrl);
     const groqClient = getGroqClient();

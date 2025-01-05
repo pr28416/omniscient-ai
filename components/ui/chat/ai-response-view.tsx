@@ -13,7 +13,17 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "../hover-card";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "../button";
-import { ArrowRight, ChevronLeft, ChevronRight, Link } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Link,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Circle,
+  Sparkles,
+} from "lucide-react";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../dialog";
@@ -90,6 +100,20 @@ function ImageResultsView({
               sizes="(max-width: 768px) 25vw, 64px"
               className="object-cover"
             />
+            <div className="absolute top-1 right-1 h-6 w-6 rounded-full border bg-card flex items-center justify-center">
+              {result.scrapeStatus === "success" && (
+                <Sparkles className="h-4 w-4 text-teal-500 dark:text-teal-400" />
+              )}
+              {result.scrapeStatus === "error" && (
+                <XCircle className="h-4 w-4 text-destructive" />
+              )}
+              {result.scrapeStatus === "in-progress" && (
+                <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+              )}
+              {result.scrapeStatus === "not-started" && (
+                <Circle className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
           </button>
         ))}
       </div>
