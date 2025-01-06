@@ -8,7 +8,7 @@ export function getCerebrasClient() {
   return new Cerebras({
     apiKey: randomChoice([
       process.env.CEREBRAS_API_KEY,
-      // process.env.CEREBRAS_API_KEY2,
+      process.env.CEREBRAS_API_KEY2,
       process.env.CEREBRAS_API_KEY3,
     ]),
   });

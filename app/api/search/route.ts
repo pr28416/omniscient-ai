@@ -8,10 +8,18 @@ import {
 import { SearchRequest, WebSource } from "./schemas";
 import { braveWebSearch } from "../brave/actions";
 
+/**
+ * POST endpoint for search functionality
+ * 1. Takes a search query and optimizes it
+ * 2. Searches web via Brave API
+ * 3. Scrapes and summarizes top results
+ * 4. Streams back a final synthesized answer
+ */
 export async function POST(req: Request) {
+  // Extract search query from request body
   const { query } = (await req.json()) as SearchRequest;
 
-  // Optimize query first
+  // Optimize the raw query into refined search queries
   const response = await optimizeRawSearchQuery(query);
   if (!response) {
     return NextResponse.json(
@@ -20,21 +28,24 @@ export async function POST(req: Request) {
     );
   }
 
-  // Search
+  // Search web using first optimized query
   const braveResponse = await braveWebSearch(response.queries[0]);
 
-  // Process multiple results
+  // Process top 3 search results in parallel
   const results = await Promise.all(
     braveResponse.web.results
       .slice(0, 3)
       .map(async (result, idx): Promise<WebSource | null> => {
         try {
+          // Scrape webpage content
           const scrapeResponse = await webscrape(result.url);
+          // Generate detailed summary of content
           const summaryResponse = await detailedWebsiteSummary(
             query,
             scrapeResponse || ""
           );
 
+          // Return structured source info
           return {
             url: result.url,
             title: result.title,
@@ -49,22 +60,21 @@ export async function POST(req: Request) {
       })
   );
 
-  // Filter out any failed results
+  // Remove any results that failed processing
   const validResults = results.filter((result) => result !== null);
 
-  // Replace the direct return with a streaming response
+  // Generate streaming response using processed sources
   const stream = await getStreamedFinalAnswer({
     query,
     sources: validResults,
     imageSources: [],
   });
 
-  // return NextResponse.json({ streamedFinalAnswer: stream });
-
-  // Return a streaming response
+  // Set up streaming response with appropriate headers
   return new NextResponse(
     new ReadableStream({
       async start(controller) {
+        // Stream each chunk of the answer as it's generated
         for await (const chunk of stream) {
           if (chunk) controller.enqueue(new TextEncoder().encode(chunk));
         }

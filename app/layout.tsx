@@ -8,8 +8,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "AI Product Lookup",
-  description: "AI Product Lookup",
+  title: "Omniscient AI",
+  description: "AI Search Engine",
 };
 
 export default function RootLayout({

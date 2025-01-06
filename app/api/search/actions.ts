@@ -1,5 +1,6 @@
 "use server";
 
+// Import required dependencies
 import axios from "axios";
 import { getCerebrasClient, getGroqClient, getOpenAIClient } from "@/lib/ai";
 import { ChatCompletion } from "openai/resources/index.mjs";
@@ -14,16 +15,25 @@ import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import OpenAI from "openai";
 
+/**
+ * Optimizes a raw search query into multiple refined search queries
+ * Primary: Uses Cerebras API with llama-3.1-8b
+ * Fallback: OpenAI with gpt-4o-mini
+ * @param query The raw search query to optimize
+ * @param numQueries Number of optimized queries to generate (default: 3)
+ * @returns SearchResponse containing array of optimized queries, or null if failed
+ */
 export async function optimizeRawSearchQuery(
   query: string,
   numQueries: number = 3
 ): Promise<SearchResponse | null> {
+  // Verify API key exists in environment variables
   if (!process.env.CEREBRAS_API_KEY) {
     throw new Error("CEREBRAS_API_KEY is not set");
   }
 
   try {
-    console.log("making cerebras search request");
+    // Make primary API request to Cerebras
     const cerebrasClient = getCerebrasClient();
     const response = await cerebrasClient.chat.completions.create({
       model: "llama-3.1-8b",
@@ -37,6 +47,7 @@ export async function optimizeRawSearchQuery(
       response_format: { type: "json_object" },
     });
 
+    // Parse and clean up response
     const searchResponse = JSON.parse(
       (response.choices as ChatCompletion.Choice[])[0].message.content!
     ) as SearchResponse;
@@ -45,11 +56,13 @@ export async function optimizeRawSearchQuery(
     );
     return searchResponse;
   } catch (error) {
+    // Handle generation cancellation
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Generation cancelled");
     }
     console.error(error);
 
+    // Fallback to OpenAI if Cerebras fails
     const openaiClient = getOpenAIClient();
     const response = await openaiClient.beta.chat.completions.parse({
       model: "gpt-4o-mini",
@@ -61,8 +74,17 @@ export async function optimizeRawSearchQuery(
   }
 }
 
+/**
+ * Scrapes and converts webpage content to markdown
+ * - Sets reasonable timeouts and headers
+ * - Handles content validation
+ * - Converts HTML to clean markdown format
+ * @param url URL of webpage to scrape
+ * @returns Markdown string of webpage content, or null if failed
+ */
 export async function webscrape(url: string): Promise<string | null> {
   try {
+    // Make HTTP request with appropriate settings
     const response = await axios.get(url, {
       timeout: 5000, // Reduced timeout to 5 seconds
       headers: {
@@ -81,6 +103,7 @@ export async function webscrape(url: string): Promise<string | null> {
       return null;
     }
 
+    // Configure HTML to Markdown converter
     const nhm = new NodeHtmlMarkdown({
       // Simplified ignore list for faster processing
       ignore: [
@@ -98,6 +121,7 @@ export async function webscrape(url: string): Promise<string | null> {
       bulletMarker: "*",
     });
 
+    // Convert HTML to Markdown
     const markdown = nhm.translate(response.data);
     return markdown;
   } catch (error) {
@@ -106,6 +130,21 @@ export async function webscrape(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Generates detailed summaries from markdown content
+ * - Chunks content for processing
+ * - Primary: Uses Cerebras API with llama-3.3-70b/3.1-70b
+ * - Fallback: OpenAI with gpt-4o-mini
+ * - Processes chunks in parallel
+ * - Creates final synthesized summary
+ * @param query Search query to focus summary on
+ * @param markdown Markdown content to summarize
+ * @param chunkCharSize Size of each content chunk (default: 8000)
+ * @param maxChunks Maximum number of chunks to process (default: 3)
+ * @param maxChunkTokens Maximum tokens per chunk summary (default: 384)
+ * @param maxTotalTokens Maximum tokens for final summary (default: 2048)
+ * @returns Detailed summary string, or null if failed
+ */
 export async function detailedWebsiteSummary(
   query: string,
   markdown: string,
@@ -115,14 +154,12 @@ export async function detailedWebsiteSummary(
   maxTotalTokens: number = 2048
 ): Promise<string | null> {
   try {
-    // Split markdown into chunks
+    // Split markdown into manageable chunks
     const chunks =
       markdown.match(new RegExp(`.{1,${chunkCharSize}}`, "gs")) || [];
     const limitedChunks = chunks.slice(0, maxChunks);
 
-    console.log("Reading ", limitedChunks.length, " chunks");
-
-    // Common message template
+    // Define system message template
     const systemMessage = (detailed = false) => ({
       role: "system" as const,
       content: `Summarize the following text as it relates to this query: "${query}". Focus only on relevant information and be detailed. ${
@@ -136,6 +173,7 @@ export async function detailedWebsiteSummary(
     const chunkSummaries = await Promise.all(
       limitedChunks.map(async (chunk, idx) => {
         try {
+          // Try Cerebras first
           const client = getCerebrasClient();
           const model = Math.random() < 0.5 ? "llama-3.3-70b" : "llama-3.1-70b";
 
@@ -149,6 +187,7 @@ export async function detailedWebsiteSummary(
 
           return response.choices[0].message.content || "";
         } catch (error) {
+          // Fallback to OpenAI for chunk processing
           console.warn(`Chunk ${idx} failed, falling back to OpenAI:`, error);
           const openaiClient = getOpenAIClient();
           const response = await openaiClient.chat.completions.create({
@@ -161,8 +200,9 @@ export async function detailedWebsiteSummary(
       })
     );
 
-    // Final summary with error handling
+    // Generate final summary with error handling
     try {
+      // Try Cerebras for final summary
       const combinedSummaries = chunkSummaries.join("\n\n");
       const cerebrasClient = getCerebrasClient();
       const finalResponse = await cerebrasClient.chat.completions.create({
@@ -182,6 +222,7 @@ export async function detailedWebsiteSummary(
         null
       );
     } catch (error) {
+      // Fallback to OpenAI for final summary
       console.warn("Final summary failed, falling back to OpenAI:", error);
       const openaiClient = getOpenAIClient();
 
@@ -198,6 +239,7 @@ export async function detailedWebsiteSummary(
         stream: true,
       });
 
+      // Collect streamed response
       let content = "";
       for await (const chunk of response) {
         content += chunk.choices[0].delta.content || "";
@@ -211,11 +253,22 @@ export async function detailedWebsiteSummary(
   }
 }
 
+/**
+ * Streams a final answer based on provided sources
+ * - Handles both text and image sources
+ * - Uses OpenAI's gpt-4o-mini
+ * - Implements strict citation and formatting guidelines
+ * - Returns streamed response for real-time updates
+ * @param streamedFinalAnswerRequest Request containing query and sources
+ * @yields Chunks of the generated response
+ */
 export async function* getStreamedFinalAnswer(
   streamedFinalAnswerRequest: StreamedFinalAnswerRequest
 ) {
+  // Extract request parameters
   const { query, sources, imageSources } = streamedFinalAnswerRequest;
 
+  // Format text sources into context string
   const sourceContext = sources
     .map(
       (source) =>
@@ -223,6 +276,7 @@ export async function* getStreamedFinalAnswer(
     )
     .join("\n\n");
 
+  // Format image sources into context string
   const imageSourceContext = imageSources
     .map(
       (source) =>
@@ -230,6 +284,7 @@ export async function* getStreamedFinalAnswer(
     )
     .join("\n\n");
 
+  // Create and stream OpenAI response
   const openaiClient = getOpenAIClient();
   const stream = await openaiClient.chat.completions.create({
     model: "gpt-4o-mini",
@@ -296,6 +351,7 @@ If you encounter a question beyond the scope of the provided sources, respond ap
     stream: true,
   });
 
+  // Stream response chunks
   try {
     for await (const chunk of stream) {
       yield chunk.choices[0].delta.content;
@@ -304,16 +360,24 @@ If you encounter a question beyond the scope of the provided sources, respond ap
     console.error("Stream error:", error);
     throw error;
   }
-
-  // return stream.choices[0].message.content;
 }
 
+/**
+ * Generates follow-up search queries based on previous results
+ * Primary: Uses Groq API with llama-3.3-70b-versatile
+ * Fallback: OpenAI with gpt-4o-mini
+ * @param enhancedQueries Array of previously enhanced queries
+ * @param previousModelResponse Previous model's response text
+ * @param numQueries Number of follow-up queries to generate (default: 5)
+ * @returns FollowUpSearchQueriesResponse containing array of queries, or null if failed
+ */
 export async function generateFollowUpSearchQueries(
   enhancedQueries: string[],
   previousModelResponse: string,
   numQueries: number = 5
 ): Promise<FollowUpSearchQueriesResponse | null> {
   try {
+    // Try Groq API first
     const groqClient = getGroqClient();
     const response = await groqClient.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -337,6 +401,7 @@ export async function generateFollowUpSearchQueries(
     ) as FollowUpSearchQueriesResponse;
     return followUpSearchQueriesResponse;
   } catch (error) {
+    // Fallback to OpenAI if Groq fails
     console.error("Error in generateFollowUpSearchQueries:", error);
 
     const openaiClient = getOpenAIClient();

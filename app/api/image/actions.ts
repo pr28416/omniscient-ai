@@ -6,17 +6,26 @@ import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletion } from "openai/resources/index.mjs";
 import { ZSearchResponse } from "../search/schemas";
 
+/**
+ * Optimizes a raw image search query into multiple refined search queries
+ * Primary: Uses Cerebras API with llama-3.3-70b
+ * Fallback: OpenAI with gpt-4o-mini
+ * @param query The raw search query to optimize
+ * @param numQueries Number of optimized queries to generate (default: 3)
+ * @returns SearchResponse containing array of optimized queries, or null if failed
+ */
 export async function optimizeRawImageSearchQuery(
   query: string,
   numQueries: number = 3
 ): Promise<SearchResponse | null> {
+  // Verify API key exists in environment variables
   if (!process.env.CEREBRAS_API_KEY) {
     throw new Error("CEREBRAS_API_KEY is not set");
   }
 
   try {
-    console.log("making cerebras search request");
     const cerebrasClient = getCerebrasClient();
+    // Make primary API request to Cerebras
     const response = await cerebrasClient.chat.completions.create({
       model: "llama-3.3-70b",
       messages: [
@@ -29,6 +38,7 @@ export async function optimizeRawImageSearchQuery(
       response_format: { type: "json_object" },
     });
 
+    // Parse and clean up response
     const searchResponse = JSON.parse(
       (response.choices as ChatCompletion.Choice[])[0].message.content!
     ) as SearchResponse;
@@ -37,11 +47,13 @@ export async function optimizeRawImageSearchQuery(
     );
     return searchResponse;
   } catch (error) {
+    // Handle generation cancellation
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Generation cancelled");
     }
     console.error(error);
 
+    // Fallback to OpenAI if Cerebras fails
     const openaiClient = getOpenAIClient();
     const response = await openaiClient.beta.chat.completions.parse({
       model: "gpt-4o-mini",
@@ -53,25 +65,31 @@ export async function optimizeRawImageSearchQuery(
   }
 }
 
+/**
+ * Generates a detailed description of an image given its title and URL
+ * Uses Groq API with vision models
+ * @param title The title of the image
+ * @param imageUrl The URL of the image to describe
+ * @returns String containing the image description, or null if failed
+ */
 export async function describeImage(
   title: string,
   imageUrl: string
 ): Promise<string | null> {
-  // const delay = Math.floor(Math.random() * 201) + 900; // Random delay between 900 and 1100 ms
-  // await new Promise((resolve) => setTimeout(resolve, delay));
-  // return "test";
-
+  // Set timeout to prevent hanging
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error("Image description timed out")), 10000)
   );
 
   try {
+    // Race between description generation and timeout
     const result = await Promise.race([
       describeImageImpl(title, imageUrl),
       timeout,
     ]);
     return result as string | null;
   } catch (error) {
+    // Handle generation cancellation
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Generation cancelled");
     }
@@ -80,13 +98,18 @@ export async function describeImage(
   }
 }
 
+/**
+ * Implementation function for image description
+ * Handles fetching image data and making API request
+ */
 async function describeImageImpl(
   title: string,
   imageUrl: string
 ): Promise<string | null> {
   try {
-    console.log("describing image: ", title, imageUrl);
     const groqClient = getGroqClient();
+
+    // Fetch image data with fallback
     const imageData = await fetch(imageUrl, { mode: "no-cors" })
       .then((res) => res.arrayBuffer())
       .catch(async () => {
@@ -94,10 +117,14 @@ async function describeImageImpl(
         return response.arrayBuffer();
       });
     const imageDataBase64 = Buffer.from(imageData).toString("base64");
+
+    // Randomly select vision model (75% chance for 11b, 25% for 90b)
     const model =
       Math.random() < 0.75
         ? "llama-3.2-11b-vision-preview"
         : "llama-3.2-90b-vision-preview";
+
+    // Make API request to Groq
     const response = await groqClient.chat.completions.create({
       model,
       messages: [
@@ -122,12 +149,15 @@ async function describeImageImpl(
       top_p: 1,
       stream: true,
     });
+
+    // Accumulate streamed response
     let content = "";
     for await (const chunk of response) {
       content += chunk.choices[0]?.delta?.content || "";
     }
     return content;
   } catch (error) {
+    // Handle generation cancellation
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Generation cancelled");
     }

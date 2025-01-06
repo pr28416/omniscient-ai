@@ -30,6 +30,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ImageScrapeStatus } from "@/app/api/image/schemas";
 
+// Preprocesses LaTeX notation in markdown text
 const preprocessLatex = (markdown: string): string => {
   return (
     markdown
@@ -40,6 +41,7 @@ const preprocessLatex = (markdown: string): string => {
   );
 };
 
+// Component for displaying image results in a grid with modal view
 function ImageResultsView({
   imageResults,
   imageSearchQueries,
@@ -225,6 +227,7 @@ function ImageResultsView({
   );
 }
 
+// Main component for displaying AI responses
 export function AiResponseView({
   assistantMessage,
   submitFollowUpSearchQueryCallback,

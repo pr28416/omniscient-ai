@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 export default function Home() {
+  // Chat-related state from context
   const {
     currentMessages: messages,
     setCurrentMessages: setMessages,
@@ -29,6 +30,8 @@ export default function Home() {
     setCurrentSessionTitle,
     createNewSession,
   } = useChat();
+
+  // Local state management
   const [isGenerating, setIsGenerating] = useState(false);
   const [input, setInput] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -43,10 +46,12 @@ export default function Home() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
 
+  // Reset input when changing sessions
   useEffect(() => {
     setInput("");
   }, [currentSessionId]);
 
+  // Abort ongoing API calls
   const cancelGeneration = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -55,6 +60,7 @@ export default function Home() {
     }
   };
 
+  // Handle new message submission
   const handleSubmit = async (query: string) => {
     cancelGeneration();
 
@@ -72,6 +78,7 @@ export default function Home() {
     }
   };
 
+  // Handle editing existing messages
   const handleEditMessage = (index: number, newContent: string) => {
     cancelGeneration();
 
@@ -89,6 +96,7 @@ export default function Home() {
     handleSubmit(newContent);
   };
 
+  // Scroll to specific message in chat history
   const scrollToMessage = (index: number) => {
     const messageElements = document.querySelectorAll("[data-message-index]");
     const targetElement = messageElements[index];
@@ -98,6 +106,7 @@ export default function Home() {
     }
   };
 
+  // Handle keyboard shortcuts
   const handleKeyPress = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
     action: () => void,
@@ -109,6 +118,7 @@ export default function Home() {
     }
   };
 
+  // Handle chat title editing
   const handleTitleEdit = () => {
     if (editedTitle.trim()) {
       setCurrentSessionTitle(editedTitle.trim());
@@ -127,7 +137,7 @@ export default function Home() {
         onClick={() => setIsSidebarOpen(false)}
       />
 
-      {/* Sidebar */}
+      {/* Sidebar with chat history */}
       <div
         className={cn(
           "fixed md:relative h-full bg-background overflow-y-auto z-50",
@@ -139,7 +149,7 @@ export default function Home() {
       >
         <div className="h-12" />
 
-        {/* Current Session Title */}
+        {/* Session title */}
         <div className="flex items-center gap-2 mb-4">
           {isEditingTitle ? (
             <div className="flex w-full gap-2">
@@ -199,7 +209,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Current Session Messages */}
+        {/* Message history */}
         {messages.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center">
             No questions asked yet
@@ -225,7 +235,7 @@ export default function Home() {
         {/* Divider */}
         <div className="h-px bg-border my-4" />
 
-        {/* Previous Sessions */}
+        {/* Previous sessions list */}
         <h3 className="font-semibold mb-4">Previous Sessions</h3>
         <div className="space-y-2">
           {sessions.toReversed().map((session) => (
@@ -244,9 +254,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Content - add toggle button */}
+      {/* Main chat area */}
       <div className="flex flex-col h-screen flex-1 relative">
-        {/* Modified container for buttons */}
+        {/* Top navigation buttons */}
         <div className="absolute top-4 left-4 right-4 flex justify-between z-50">
           <Button
             variant="outline"
@@ -280,8 +290,9 @@ export default function Home() {
           </Button>
         </div>
 
+        {/* Empty state or chat messages */}
         {!messages || messages.length === 0 ? (
-          // Empty state content
+          // Welcome screen with initial input
           <div className="flex flex-col h-screen flex-1 items-center justify-center p-4 text-foreground">
             <div className="flex flex-col gap-8 items-center w-full max-w-xl">
               <h1 className="text-4xl font-bold tracking-tighter">
@@ -330,7 +341,7 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          // Messages content - restructured
+          // Chat messages display
           <div className="flex flex-col h-screen flex-1">
             <div className="flex-1 overflow-y-auto">
               <div className="flex flex-col px-4 sm:px-16 py-4 sm:py-8 pt-8 pb-0 w-full">
@@ -413,7 +424,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Search - moved outside the scroll container */}
+            {/* Message input area */}
             <div className="w-full p-8 pt-4 flex flex-row items-center">
               <div className="flex flex-row gap-2 border-2 border-border bg-card rounded-md w-full max-w-5xl p-2">
                 <TextareaAutosize

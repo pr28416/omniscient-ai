@@ -31,6 +31,7 @@ import { createSessionTitle, decision } from "@/app/api/utils/actions";
 import { ImageScrapeStatus } from "@/app/api/image/schemas";
 import { v4 as uuidv4 } from "uuid";
 
+// Define the shape of our Chat Context including all required methods and state
 interface ChatContextType {
   sessions: Session[];
   setSessions: Dispatch<SetStateAction<Session[]>>;
@@ -50,14 +51,17 @@ interface ChatContextType {
   ) => Promise<void>;
 }
 
+// Create the context with undefined default value
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
+  // Core state management for chat sessions
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [currentSessionTitle, setCurrentSessionTitle] = useState<string>("");
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
 
+  // Helper function to create a new chat session
   const createNewSession = (setAsCurrentSession: boolean = true) => {
     const newSession: Session = {
       id: uuidv4(),
@@ -71,11 +75,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Create a new session ID when the component mounts
+  // Initialize with a new session ID on component mount
   useEffect(() => {
     setCurrentSessionId(uuidv4());
   }, []);
 
+  // Sync current session data when session ID changes
   useEffect(() => {
     if (currentSessionId) {
       const session = sessions.find(
@@ -91,6 +96,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSessionId]);
 
+  // Update sessions array when messages or title changes
   useEffect(() => {
     setSessions((prev) => {
       const newSessions: Session[] = [];
@@ -113,6 +119,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMessages, currentSessionTitle]);
 
+  // Add a new user message to the current session
   const addUserMessage = async (content: string) => {
     const newMessage: Message = {
       userMessage: { content },
@@ -126,6 +133,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Update the most recent assistant message with new content
   const updateLatestAssistantMessage = (
     newAssistantMessage: AssistantMessage
   ) => {
@@ -145,10 +153,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setCurrentMessages([]);
   };
 
+  // Web search functionality
   const aiWebSearch = async (
     query: string,
     signal: AbortSignal
   ): Promise<AiWebSearchResponse> => {
+    // 1. Optimize the search query
+    // 2. Perform web searches
+    // 3. Process and scrape search results
+    // 4. Update UI state throughout the process
     const optimizedQueryResponse = await optimizeRawSearchQuery(query);
     if (signal.aborted) throw new Error("Generation cancelled");
 
@@ -203,20 +216,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         },
       }));
 
-    const startTime = performance.now();
-
-    console.log("Start time: ", startTime);
-
     const processPromises = processedSearchResults.map(async (result, idx) => {
       if (signal.aborted) throw new Error("Generation cancelled");
       if (signal.aborted) throw new Error("Generation cancelled");
-
-      console.log(
-        "(",
-        ((performance.now() - startTime) / 1000).toFixed(2),
-        ") Processing search result ",
-        idx
-      );
 
       try {
         processedSearchResults[idx].scrapeStatus = "in-progress";
@@ -267,8 +269,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    console.log("Processed search results: ", processedSearchResults);
-
     await Promise.allSettled(processPromises);
 
     if (signal.aborted) throw new Error("Generation cancelled");
@@ -279,23 +279,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  // Image search functionality
   const aiImageSearch = async (
     query: string,
     signal: AbortSignal
   ): Promise<AiImageSearchResponse> => {
+    // 1. Determine if image search is needed
+    // 2. Optimize image search queries
+    // 3. Perform image searches
+    // 4. Process and describe images
+    // 5. Update UI state throughout the process
     if (
       !(await decision(
         query,
         "Would image or diagram responses be helpful in response to the given query?"
       ))
     ) {
-      console.log("Image search not needed");
       return {
         optimizedQueries: [],
         processedImageSearchResults: [],
       };
-    } else {
-      console.log("Image search needed");
     }
 
     const {
@@ -381,13 +384,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       processedImageSearchResults,
     });
 
-    console.log("Images should be processed now");
-
     const processPromises = processedImageSearchResults.map(
       async (result, idx) => {
         if (signal.aborted) throw new Error("Generation cancelled");
-
-        console.log("Processing image ", idx);
 
         // Skip if already processed or in error state
         if (
@@ -431,8 +430,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           processedImageSearchResults[idx].error = (error as Error).message;
         }
 
-        console.log("Update happened for index ", idx);
-
         // Single update after processing is complete
         updateLatestAssistantMessage({
           processedImageSearchResults,
@@ -454,10 +451,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  // Main function to generate assistant responses
   const generateAssistantResponse = async (
     query: string,
     signal: AbortSignal
   ): Promise<void> => {
+    // 1. Add user message
+    // 2. Perform parallel web and image searches
+    // 3. Generate final answer using search results
+    // 4. Generate follow-up questions
+    // 5. Handle errors and cancellation
     query = query.trim();
     try {
       await addUserMessage(query);
@@ -494,7 +497,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const finalAnswer = await getStreamedFinalAnswer({
         query: query,
         sources: processedSearchResults.map((result) => result.source),
-        // imageSources: [],
         imageSources: processedImageSearchResults
           .filter((result) => result.scrapeStatus === "success")
           .map((result) => result.source),
@@ -509,8 +511,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           isDoneGeneratingFinalAnswer: true,
         });
       }
-
-      // console.log("Final answer: ", finalAnswerString);
 
       updateLatestAssistantMessage({
         isDoneGeneratingFinalAnswer: true,
@@ -527,15 +527,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      if ((error as Error).message === "Generation cancelled") {
-        console.log("Generation was cancelled");
-      } else {
+      if ((error as Error).message !== "Generation cancelled") {
         console.error("Error during generation:", error);
       }
       throw error;
     }
   };
 
+  // Provide chat context to children components
   return (
     <ChatContext.Provider
       value={{
@@ -559,6 +558,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Custom hook to use chat context
 export function useChat() {
   const context = useContext(ChatContext);
   if (context === undefined) {
